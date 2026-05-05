@@ -19,6 +19,7 @@ Ruby 実装を bundle 経由で使う場合は、`ruby/` ディレクトリで `
 ## ディレクトリ構成
 
 - `ruby/` - Ruby 実装のサンプル
+- `typescript/` - TypeScript 実装
 - `data/` - ベンチマーク用データ置き場
 
 ## `data/` について
@@ -32,7 +33,7 @@ Ruby 実装を bundle 経由で使う場合は、`ruby/` ディレクトリで `
 
 - `tools/bench.rb` で各実装を同じフィルタ・同じ入力で実行できます
 - 入力が `.xz` の場合は、ツール側で一時展開します
-- 実装一覧は `tools/bench.yml` に書きます
+- 実装一覧と build 手順は `tools/bench.yml` に書きます
 - `--jit` / `--no-jit` で JIT の有無を指定できます
 - ドライバが入力ファイル名から `csv` / `ltsv` を決めて、実装に `--format` を渡します
 - 既定では Ruby 実装を基準に stdout を比較し、あわせて実行時間も表示します
@@ -40,6 +41,14 @@ Ruby 実装を bundle 経由で使う場合は、`ruby/` ディレクトリで `
 - Ruby 実装は `--format auto|csv|ltsv` を受け付けます
 - Ruby 実装は `stderr` に `phase=boot` / `phase=ready` / `phase=done` を出します
 - Ruby 実装は起動前フラグとして `--jit` / `--no-jit` / `--yjit` / `--no-yjit` / `--yjit-stats` を受け付けます
+- TypeScript 実装は `--jit` / `--no-jit` を受け取りますが、現時点では no-op です
+- TypeScript 実装は `node` と `bun` の両方で実行できます
+- `tools/bench.yml` では TypeScript の `node` 実行を `typescript`、`bun` 実行を `typescript-bun` として定義しています
+- TypeScript 実装は `tools/bench.rb` で `tsc -p tsconfig.json` を build として実行してから、`node dist/index.js ...` または `bun dist/index.js ...` を使います
+
+TypeScript 実装を手動で使う場合は、`typescript/` ディレクトリで `tsc -p tsconfig.json` を実行してから、`node dist/index.js ...` または `bun dist/index.js ...` を使ってください。
+
+TypeScript 実装のテストは `typescript/` ディレクトリで `npm test` を実行します。build も含めて確認します。
 
 例:
 

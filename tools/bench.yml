@@ -8,3 +8,28 @@ implementations:
       - "{format}"
       - "{filter}"
       - "{input}"
+  - name: typescript
+    build: &typescript_build
+      cwd: typescript
+      command:
+        - tsc
+        - -p
+        - tsconfig.json
+    command:
+      - node
+      - typescript/dist/index.js
+      - "{jit_flag}"
+      - --format
+      - "{format}"
+      - "{filter}"
+      - "{input}"
+  - name: typescript-bun
+    build: *typescript_build
+    command:
+      - bun
+      - typescript/dist/index.js
+      - "{jit_flag}"
+      - --format
+      - "{format}"
+      - "{filter}"
+      - "{input}"

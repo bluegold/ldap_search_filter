@@ -52,6 +52,26 @@ def normalize_command(command)
   end
 end
 
+def normalize_build(build)
+  case build
+  when Hash
+    command = fetch_hash_value(build, "command")
+    unless command
+      raise ArgumentError, "build must include command"
+    end
+
+    {
+      command: normalize_command(command),
+      cwd: fetch_hash_value(build, "cwd")&.to_s
+    }
+  else
+    {
+      command: normalize_command(build),
+      cwd: nil
+    }
+  end
+end
+
 def expand_placeholders(command, vars)
   command.map do |part|
     text = part.dup
@@ -96,9 +116,9 @@ def prepare_input(path)
   [tmp.path, tmp]
 end
 
-def run_command(command, repo_root)
+def run_command(command, repo_root, chdir: repo_root)
   start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-  stdout, stderr, status = Open3.capture3(*command, chdir: repo_root)
+  stdout, stderr, status = Open3.capture3(*command, chdir: chdir)
   elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start
 
   Result.new(
@@ -110,6 +130,17 @@ def run_command(command, repo_root)
     line_count: stdout.each_line.count,
     name: nil
   )
+end
+
+def build_summary_line(names, status, width)
+  label = names.join(", ")
+  format("%-#{width}s %s", label, status)
+end
+
+def display_width(implementations, build_specs)
+  run_width = implementations.map { |impl| fetch_hash_value(impl, "name").to_s.length }.max || 0
+  build_width = build_specs.values.flat_map { |spec| spec[:names] }.map(&:length).max || 0
+  [12, run_width, build_width].max
 end
 
 def format_seconds(seconds)
@@ -219,8 +250,8 @@ if implementations.empty?
   raise ArgumentError, "no implementations selected"
 end
 
-baseline_name = options[:baseline] || fetch_hash_value(implementations.first, "name").to_s
-input_path, tmp_input = prepare_input(options[:input])
+  baseline_name = options[:baseline] || fetch_hash_value(implementations.first, "name").to_s
+  input_path, tmp_input = prepare_input(options[:input])
 
 begin
   vars = {
@@ -230,6 +261,38 @@ begin
     "jit_flag" => options[:jit].nil? ? "" : (options[:jit] ? "--jit" : "--no-jit"),
     "repo_root" => repo_root
   }
+
+  build_specs = {}
+  implementations.each do |impl|
+    name = fetch_hash_value(impl, "name").to_s
+    build = fetch_hash_value(impl, "build")
+    next unless build
+
+    spec = normalize_build(build)
+    key = [spec[:cwd], spec[:command]].flatten.join("\u0000")
+    build_specs[key] ||= spec.merge(names: [])
+    build_specs[key][:names] << name
+  end
+
+  unless build_specs.empty?
+    puts "build:"
+  end
+  width = display_width(implementations, build_specs)
+  build_specs.each_value do |spec|
+    chdir = spec[:cwd] ? File.expand_path(spec[:cwd], repo_root) : repo_root
+    result = run_command(spec[:command], repo_root, chdir: chdir)
+    unless result.status.success?
+      puts "build: failed"
+      puts "command: #{spec[:command].join(' ')}"
+      puts "stdout"
+      puts excerpt(result.stdout)
+      puts "stderr"
+      puts excerpt(result.stderr)
+      exit 1
+    end
+
+    puts build_summary_line(spec[:names], "ok", width)
+  end
 
   runs = implementations.map do |impl|
     name = fetch_hash_value(impl, "name").to_s
@@ -273,7 +336,7 @@ begin
     runs.each do |run|
       status = run.status.success? ? "ok" : "ng"
       puts format(
-        "%-12s %-2s %7ss  lines=%-8d sha256=%s",
+        "%-#{width}s %-2s %7ss  lines=%-8d sha256=%s",
         run.name,
         status,
         format_seconds(run.seconds),
