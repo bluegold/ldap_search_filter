@@ -1,4 +1,5 @@
 require_relative "ldap_filter/error"
+require_relative "ldap_filter/node"
 require_relative "ldap_filter/parser"
 require_relative "ldap_filter/evaluator"
 require_relative "ldap_filter/ltsv"

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "csv"
 require "open3"
 require "optparse"
@@ -16,27 +18,11 @@ class LdapFilterCommand
     stderr.puts phase_line("boot", start_ns, monotonic_ns)
 
     format = select_format(options[:format], input_path)
-    opts = { keytype: :symbol }
-    evaluator = LdapFilterEvaluator.new(filter, opts)
+    evaluator = LdapFilterEvaluator.new(filter, keytype: :symbol)
 
     stderr.puts phase_line("ready", start_ns, monotonic_ns)
 
-    case format
-    when "csv"
-      process_rows(input_path, evaluator, stdout) do |io, row_yielder|
-        CSV.new(io, headers: true, header_converters: :symbol).each do |row|
-          row_yielder.call(row.to_h)
-        end
-      end
-    when "ltsv"
-      process_rows(input_path, evaluator, stdout) do |io, row_yielder|
-        io.each_line do |line|
-          row_yielder.call(LTSV.parse(line))
-        end
-      end
-    else
-      raise ArgumentError, "unsupported format: #{format}"
-    end
+    process_input(input_path, format, evaluator, stdout)
 
     stderr.puts phase_line("done", start_ns, monotonic_ns)
   end
@@ -64,8 +50,7 @@ class LdapFilterCommand
       end
     end
 
-    positional = parser.parse(argv)
-    [options, positional]
+    [options, parser.parse(argv)]
   end
 
   def self.select_format(format, input_path)
@@ -75,6 +60,10 @@ class LdapFilterCommand
   end
 
   def self.detect_format(input_path)
+    base = File.basename(input_path)
+    return "csv" if base.end_with?(".csv", ".csv.xz")
+    return "ltsv" if base.end_with?(".ltsv", ".ltsv.xz")
+
     first_line = with_input_io(input_path) do |io|
       io.each_line.find { |line| !line.strip.empty? }
     end
@@ -84,26 +73,46 @@ class LdapFilterCommand
     "csv"
   end
 
-  def self.process_rows(input_path, evaluator, stdout)
-    with_input_io(input_path) do |io|
-      row_yielder = lambda do |attrs|
-        next unless evaluator.evaluate(attrs)
-
-        stdout.puts attrs.inspect
+  def self.process_input(input_path, format, evaluator, stdout)
+    case format
+    when "csv"
+      each_csv_attrs(input_path) do |attrs|
+        stdout.puts attrs.inspect if evaluator.evaluate(attrs)
       end
+    when "ltsv"
+      each_ltsv_attrs(input_path) do |attrs|
+        stdout.puts attrs.inspect if evaluator.evaluate(attrs)
+      end
+    else
+      raise ArgumentError, "unsupported format: #{format}"
+    end
+  end
 
-      yield(io, row_yielder)
+  def self.each_csv_attrs(input_path)
+    with_input_io(input_path) do |io|
+      csv = CSV.new(io, headers: true, header_converters: :symbol)
+      csv.each do |row|
+        yield row.to_h
+      end
+    end
+  end
+
+  def self.each_ltsv_attrs(input_path)
+    with_input_io(input_path) do |io|
+      io.each_line do |line|
+        yield LTSV.parse_line(line.chomp)
+      end
     end
   end
 
   def self.with_input_io(input_path)
     if input_path.end_with?(".xz")
-      stdin, stdout, stderr, wait_thr = Open3.popen3("xz", "-dc", input_path)
+      stdin, out, stderr, wait_thr = Open3.popen3("xz", "-dc", input_path)
       stdin.close
       begin
-        yield stdout
+        yield out
       ensure
-        stdout.close unless stdout.closed?
+        out.close unless out.closed?
         err = stderr.read
         stderr.close unless stderr.closed?
         status = wait_thr.value

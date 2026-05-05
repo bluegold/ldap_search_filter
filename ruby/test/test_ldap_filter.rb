@@ -5,20 +5,22 @@ class LdapFilterParserTest < Minitest::Test
     parser = LdapFilterParser.new
     parser.parse("(host=www.*)")
 
-    item = parser.result[:filter][:item]
-    assert_equal "=", item[:filtertype]
-    assert_equal "host", item[:attr]
-    assert_equal "www.[:wildcard:]", item[:value]
-    assert_kind_of Regexp, item[:regex]
+    item = parser.result
+    assert_kind_of LdapFilterItem, item
+    assert_equal "=", item.filtertype
+    assert_equal "host", item.attr
+    assert_equal "www.*", item.value
+    assert_kind_of Regexp, item.regex
   end
 
   def test_parses_presence_filter
     parser = LdapFilterParser.new
     parser.parse("(host=*)")
 
-    item = parser.result[:filter][:item]
-    assert_equal "*", item[:value]
-    refute item.key?(:regex)
+    item = parser.result
+    assert_kind_of LdapFilterItem, item
+    assert_equal "*", item.value
+    assert_nil item.regex
   end
 end
 

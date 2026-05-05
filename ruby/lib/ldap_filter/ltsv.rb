@@ -1,45 +1,37 @@
+# frozen_string_literal: true
+
 class LTSV
   class << self
     def parse_line(line, options = {})
-      symbolize_keys = options.delete(:symbolize_keys)
-      symbolize_keys = true if symbolize_keys.nil?
-
-      line.split("\t").inject({}) do |h, i|
-        key, value = i.split(":", 2)
-        next h unless key
+      symbolize_keys = options.fetch(:symbolize_keys, true)
+      line.split("\t").each_with_object({}) do |entry, result|
+        key, value = entry.split(":", 2)
+        next unless key
 
         key = key.to_sym if symbolize_keys
-        unescape!(value)
-        h[key] = case value
-                 when nil then nil
-                 when "" then nil
-                 else value
-                 end
-        h
+        result[key] = normalize_value(unescape(value))
       end
     end
 
     def parse(string, options = {})
-      string.chomp.split($/).map { |l| parse_line(l, options) }.reduce({}, :merge)
+      parse_line(string.chomp, options)
     end
 
-    def unescape!(string)
-      return nil if !string || string == ""
+    def unescape(value)
+      return nil if !value || value.empty?
 
-      string.gsub!(/\\([a-z\\])/) do
+      value.gsub(/\\([rnt\\])/) do
         case Regexp.last_match(1)
-        when "r"
-          "\r"
-        when "n"
-          "\n"
-        when "t"
-          "\t"
-        when "\\"
-          "\\"
-        else
-          Regexp.last_match(0)
+        when "r" then "\r"
+        when "n" then "\n"
+        when "t" then "\t"
+        when "\\" then "\\"
         end
       end
+    end
+
+    def normalize_value(value)
+      value.nil? || value.empty? ? nil : value
     end
   end
 end
