@@ -12,6 +12,9 @@ LDAP Search Filter (RFC 4515) を読み取り、CSV / LTSV のログ行をフィ
 
 - [RFC 4515](rfc4515.txt)
 - [Ruby サンプル実装](ruby/ldap_filter.rb)
+- Ruby 依存定義は [ruby/Gemfile](ruby/Gemfile) にあります
+
+Ruby 実装を bundle 経由で使う場合は、`ruby/` ディレクトリで `bundle install` してください。
 
 ## ディレクトリ構成
 
@@ -30,8 +33,20 @@ LDAP Search Filter (RFC 4515) を読み取り、CSV / LTSV のログ行をフィ
 - `tools/bench.rb` で各実装を同じフィルタ・同じ入力で実行できます
 - 入力が `.xz` の場合は、ツール側で一時展開します
 - 実装一覧は `tools/bench.yml` に書きます
+- `--jit` / `--no-jit` で JIT の有無を指定できます
+- ドライバが入力ファイル名から `csv` / `ltsv` を決めて、実装に `--format` を渡します
 - 既定では Ruby 実装を基準に stdout を比較し、あわせて実行時間も表示します
 - `--verbose` を付けると、各実装の stdout / stderr をそのまま表示します
+- Ruby 実装は `--format auto|csv|ltsv` を受け付けます
+- Ruby 実装は `stderr` に `phase=boot` / `phase=ready` / `phase=done` を出します
+- Ruby 実装は起動前フラグとして `--jit` / `--no-jit` / `--yjit` / `--no-yjit` / `--yjit-stats` を受け付けます
+
+例:
+
+```bash
+cd ruby
+bundle exec ruby ./ldap_filter.rb --jit --format ltsv '(host=*)' ../data/kentei-access.log.xz
+```
 
 例:
 

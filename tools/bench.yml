@@ -3,5 +3,8 @@ implementations:
     command:
       - ruby
       - ruby/ldap_filter.rb
+      - "{jit_flag}"
+      - --format
+      - "{format}"
       - "{filter}"
       - "{input}"

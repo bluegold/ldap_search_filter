@@ -1,0 +1,1 @@
+class LdapFilterError < StandardError; end

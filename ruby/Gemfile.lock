@@ -1,0 +1,20 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    csv (3.3.5)
+    did_you_mean (2.0.0)
+
+PLATFORMS
+  ruby
+  x86_64-linux
+
+DEPENDENCIES
+  csv
+  did_you_mean
+
+CHECKSUMS
+  csv (3.3.5)
+  did_you_mean (2.0.0)
+
+BUNDLED WITH
+  4.0.7

@@ -58,8 +58,10 @@ def expand_placeholders(command, vars)
     vars.each do |key, value|
       text = text.gsub("{#{key}}", value.to_s)
     end
+    next if text.empty?
+
     text
-  end
+  end.compact
 end
 
 def prepare_input(path)
@@ -123,10 +125,19 @@ def excerpt(text, limit: 10)
   body
 end
 
+def detect_format(input_path)
+  base = File.basename(input_path)
+  return "csv" if base.match?(/\.csv(?:\.xz)?\z/)
+  return "ltsv" if base.match?(/\.ltsv(?:\.xz)?\z/)
+
+  "ltsv"
+end
+
 options = {
   config: File.expand_path("bench.yml", __dir__),
   baseline: nil,
   check: true,
+  jit: nil,
   bench: true,
   verbose: false
 }
@@ -144,6 +155,18 @@ parser = OptionParser.new do |opts|
 
   opts.on("--input PATH", "input log file (.xz is accepted)") do |value|
     options[:input] = value
+  end
+
+  opts.on("--jit", "run implementations with JIT enabled") do
+    raise ArgumentError, "conflicting JIT flags" if options[:jit] == false
+
+    options[:jit] = true
+  end
+
+  opts.on("--no-jit", "run implementations with JIT disabled") do
+    raise ArgumentError, "conflicting JIT flags" if options[:jit] == true
+
+    options[:jit] = false
   end
 
   opts.on("--baseline NAME", "implementation name used as the comparison baseline") do |value|
@@ -203,6 +226,8 @@ begin
   vars = {
     "filter" => options[:filter],
     "input" => input_path,
+    "format" => detect_format(options[:input]),
+    "jit_flag" => options[:jit].nil? ? "" : (options[:jit] ? "--jit" : "--no-jit"),
     "repo_root" => repo_root
   }
 
@@ -224,6 +249,7 @@ begin
   puts "input: #{options[:input]}"
   puts "filter: #{options[:filter]}"
   puts "baseline: #{baseline.name}"
+  puts "jit: #{options[:jit].nil? ? 'default' : (options[:jit] ? 'on' : 'off')}"
 
   if options[:check]
     mismatches = runs.reject { |run| run.stdout == baseline.stdout && run.status.success? && baseline.status.success? }

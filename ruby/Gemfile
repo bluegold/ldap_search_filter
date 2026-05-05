@@ -1,0 +1,4 @@
+source "https://rubygems.org"
+
+gem "csv"
+gem "did_you_mean"
