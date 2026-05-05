@@ -5,4 +5,6 @@
 /csharp/obj/
 /csharp/tests/bin/
 /csharp/tests/obj/
+/zig/zig-out/
+/zig/zig-cache/
 /.envrc

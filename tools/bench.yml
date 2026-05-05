@@ -57,3 +57,23 @@ implementations:
       - "{format}"
       - "{filter}"
       - "{input}"
+  - name: zig
+    build:
+      cwd: zig
+      command:
+        - env
+        - ZIG_GLOBAL_CACHE_DIR=/tmp/ldf-zig-cache
+        - ZIG_LOCAL_CACHE_DIR=/tmp/ldf-zig-cache-local
+        - zig
+        - build
+        - -Doptimize=ReleaseFast
+    command:
+      - env
+      - ZIG_GLOBAL_CACHE_DIR=/tmp/ldf-zig-cache
+      - ZIG_LOCAL_CACHE_DIR=/tmp/ldf-zig-cache-local
+      - zig/zig-out/bin/ldap_filter
+      - "{jit_flag}"
+      - --format
+      - "{format}"
+      - "{filter}"
+      - "{input}"

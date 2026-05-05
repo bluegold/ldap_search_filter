@@ -21,6 +21,7 @@ Ruby 実装を bundle 経由で使う場合は、`ruby/` ディレクトリで `
 - `ruby/` - Ruby 実装のサンプル
 - `typescript/` - TypeScript 実装
 - `csharp/` - C# / .NET 10 実装
+- `zig/` - Zig 実装
 - `data/` - ベンチマーク用データ置き場
 
 ## `data/` について
@@ -52,12 +53,16 @@ Ruby 実装を bundle 経由で使う場合は、`ruby/` ディレクトリで `
 - C# 実装は .NET 10 で動きます
 - `tools/bench.yml` では C# 実装を `csharp` として定義しています
 - C# 実装は `tools/bench.rb` で `dotnet build -c Release` を build として実行してから、`dotnet csharp/bin/Release/net10.0/LdapFilter.dll ...` を使います
+- Zig 実装は `tools/bench.yml` では `zig` として定義しています
+- Zig 実装は `tools/bench.rb` で `zig build -Doptimize=ReleaseFast` を build として実行してから、`zig/zig-out/bin/ldap_filter ...` を使います
 
 TypeScript 実装を手動で使う場合は、`typescript/` ディレクトリで `tsc -p tsconfig.json` を実行してから、`node dist/index.js ...` または `bun dist/index.js ...` を使ってください。
 
 TypeScript 実装のテストは `typescript/` ディレクトリで `npm test` を実行します。build も含めて確認します。
 
 `csharp/` の unit test は `cd csharp && env DOTNET_CLI_HOME=/tmp/ldf-dotnet DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 DOTNET_NOLOGO=1 dotnet run --project tests/LdapFilter.Tests.csproj -c Release` で実行します。
+
+`zig/` の unit test は `cd zig && zig build test` で実行します。
 
 `tools/bench.rb` のテストは `ruby tools/test/bench_test.rb` で実行します。
 
