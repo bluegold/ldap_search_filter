@@ -3,6 +3,11 @@ GEM
   specs:
     csv (3.3.5)
     did_you_mean (2.0.0)
+    drb (2.2.3)
+    minitest (6.0.2)
+      drb (~> 2.0)
+      prism (~> 1.5)
+    prism (1.9.0)
 
 PLATFORMS
   ruby
@@ -11,10 +16,14 @@ PLATFORMS
 DEPENDENCIES
   csv
   did_you_mean
+  minitest
 
 CHECKSUMS
   csv (3.3.5)
   did_you_mean (2.0.0)
+  drb (2.2.3)
+  minitest (6.0.2)
+  prism (1.9.0)
 
 BUNDLED WITH
   4.0.7
