@@ -50,6 +50,10 @@ TypeScript 実装を手動で使う場合は、`typescript/` ディレクトリ�
 
 TypeScript 実装のテストは `typescript/` ディレクトリで `npm test` を実行します。build も含めて確認します。
 
+`tools/bench.rb` のテストは `ruby tools/test/bench_test.rb` で実行します。
+
+まとめて実行する場合は `just test` を使います。
+
 例:
 
 ```bash
