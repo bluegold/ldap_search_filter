@@ -183,3 +183,12 @@ implementations:
       - "{format}"
       - "{filter}"
       - "{input}"
+  - name: python
+    command:
+      - python3
+      - python/ldap_filter.py
+      - "{jit_flag}"
+      - --format
+      - "{format}"
+      - "{filter}"
+      - "{input}"

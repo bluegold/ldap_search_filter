@@ -7,6 +7,8 @@
 /csharp/tests/obj/
 /csharp-aot/bin/
 /csharp-aot/obj/
+/python/__pycache__/
+/python/test/__pycache__/
 /zig/zig-out/
 /zig/zig-cache/
 /rust/target/
