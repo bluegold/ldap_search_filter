@@ -164,8 +164,8 @@ function escapeRubyString(text: string): string {
 
 function formatKey(key: string): string {
   return /^[A-Za-z_][A-Za-z0-9_]*$/.test(key)
-    ? `:${key}=>`
-    : `:${JSON.stringify(key)}=>`;
+    ? `${key}: `
+    : `${JSON.stringify(key)} => `;
 }
 
 function formatValue(value: AttrValue): string {

@@ -40,6 +40,6 @@ test("inspectAttrs formats ruby-like hashes", () => {
       remote_addr: "49.98.3.247",
       "http/2": "h2"
     }),
-    '{:time=>"2022-04-10T00:00:05+09:00", :remote_addr=>"49.98.3.247", :"http/2"=>"h2"}'
+    '{time: "2022-04-10T00:00:05+09:00", remote_addr: "49.98.3.247", "http/2" => "h2"}'
   );
 });

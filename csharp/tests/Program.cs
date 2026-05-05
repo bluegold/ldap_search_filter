@@ -95,12 +95,12 @@ internal static class Program
 
             var csvRun = await RunCliAsync("--format", "auto", "(host=example.com)", csvPath);
             AssertEqual(0, csvRun.ExitCode, "csv exit");
-            AssertEqual("{:host=>\"example.com\", :pass=>\"true\"}", csvRun.Stdout.Trim(), "csv stdout");
+            AssertEqual("{host: \"example.com\", pass: \"true\"}", csvRun.Stdout.Trim(), "csv stdout");
             AssertPhaseLines(csvRun.Stderr, "boot", "ready", "done");
 
             var ltsvRun = await RunCliAsync("(host=example.com)", ltsvPath);
             AssertEqual(0, ltsvRun.ExitCode, "ltsv exit");
-            AssertEqual("{:host=>\"example.com\", :pass=>\"true\"}", ltsvRun.Stdout.Trim(), "ltsv stdout");
+            AssertEqual("{host: \"example.com\", pass: \"true\"}", ltsvRun.Stdout.Trim(), "ltsv stdout");
             AssertPhaseLines(ltsvRun.Stderr, "boot", "ready", "done");
         }
         finally

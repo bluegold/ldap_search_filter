@@ -2,7 +2,7 @@ set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
 default: test
 
-test: test-ruby test-typescript test-csharp test-zig test-tools
+test: test-ruby test-typescript test-csharp test-zig test-rust test-tools
 
 test-ruby:
 	cd ruby && bundle exec ruby -Itest test/test_ldap_filter.rb
@@ -15,6 +15,9 @@ test-csharp:
 
 test-zig:
 	cd zig && env ZIG_GLOBAL_CACHE_DIR=/tmp/ldf-zig-cache ZIG_LOCAL_CACHE_DIR=/tmp/ldf-zig-cache-local zig build test
+
+test-rust:
+	cd rust && cargo test
 
 test-tools:
 	ruby tools/test/bench_test.rb

@@ -77,3 +77,18 @@ implementations:
       - "{format}"
       - "{filter}"
       - "{input}"
+  - name: rust
+    build:
+      cwd: rust
+      command:
+        - cargo
+        - build
+        - --release
+        - --locked
+    command:
+      - rust/target/release/ldf
+      - "{jit_flag}"
+      - --format
+      - "{format}"
+      - "{filter}"
+      - "{input}"

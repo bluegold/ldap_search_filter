@@ -720,7 +720,6 @@ fn inspectAttrs(allocator: Allocator, attrs: *const OrderedAttrs) ![]const u8 {
             try out.appendSlice(", ");
         }
         try appendRubySymbolKey(&out, entry.key);
-        try out.appendSlice("=>");
         if (entry.value) |value| {
             try out.append('"');
             try appendEscapedRubyString(&out, value);
@@ -736,14 +735,14 @@ fn inspectAttrs(allocator: Allocator, attrs: *const OrderedAttrs) ![]const u8 {
 
 fn appendRubySymbolKey(out: *Managed(u8), key: []const u8) !void {
     if (isRubySymbolKey(key)) {
-        try out.append(':');
         try out.appendSlice(key);
+        try out.appendSlice(": ");
         return;
     }
 
-    try out.appendSlice(":\"");
+    try out.appendSlice("\"");
     try appendEscapedRubyString(out, key);
-    try out.append('"');
+    try out.appendSlice("\" => ");
 }
 
 fn isRubySymbolKey(key: []const u8) bool {
@@ -843,7 +842,7 @@ test "cli output and phases" {
         &stderr_capture,
     );
 
-    try std.testing.expectEqualStrings("{:host=>\"example.com\", :pass=>\"true\"}\n", stdout_capture.items());
+    try std.testing.expectEqualStrings("{host: \"example.com\", pass: \"true\"}\n", stdout_capture.items());
 
     const stderr_text = stderr_capture.items();
     var lines = std.mem.splitScalar(u8, stderr_text, '\n');

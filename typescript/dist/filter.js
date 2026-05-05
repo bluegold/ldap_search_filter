@@ -137,8 +137,8 @@ function escapeRubyString(text) {
 }
 function formatKey(key) {
     return /^[A-Za-z_][A-Za-z0-9_]*$/.test(key)
-        ? `:${key}=>`
-        : `:${JSON.stringify(key)}=>`;
+        ? `${key}: `
+        : `${JSON.stringify(key)} => `;
 }
 function formatValue(value) {
     if (value === null || value === undefined) {

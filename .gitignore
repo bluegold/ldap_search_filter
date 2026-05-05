@@ -7,4 +7,5 @@
 /csharp/tests/obj/
 /zig/zig-out/
 /zig/zig-cache/
+/rust/target/
 /.envrc

@@ -107,8 +107,8 @@ sealed class Program
     private static string FormatKey(string key)
     {
         return Regex.IsMatch(key, @"^[A-Za-z_][A-Za-z0-9_]*$")
-            ? $":{key}=>"
-            : $":\"{EscapeRubyString(key)}\"=>";
+            ? $"{key}: "
+            : $"\"{EscapeRubyString(key)}\" => ";
     }
 
     private static string FormatValue(string? value)
