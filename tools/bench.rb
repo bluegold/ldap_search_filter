@@ -18,6 +18,12 @@ Result = Struct.new(
   keyword_init: true
 )
 
+TimestampPoint = Struct.new(
+  :phase,
+  :elapsed_ns,
+  keyword_init: true
+)
+
 def repo_root
   File.expand_path("..", __dir__)
 end
@@ -156,6 +162,37 @@ def excerpt(text, limit: 10)
   body
 end
 
+def parse_timestamp_points(stderr)
+  points = []
+  stderr.each_line do |line|
+    match = /\Aphase=([a-zA-Z0-9_:-]+)\b.*\belapsed_ns=(\d+)\b/.match(line)
+    next unless match
+
+    points << TimestampPoint.new(
+      phase: match[1],
+      elapsed_ns: match[2].to_i
+    )
+  end
+  points
+end
+
+def format_timestamp_point(point)
+  elapsed_ms = point.elapsed_ns / 1_000_000.0
+  label =
+    case point.phase
+    when "boot"
+      "boot"
+    when "ready"
+      "parse"
+    when "done"
+      "processing"
+    else
+      point.phase
+    end
+
+  format("  %-10s %10.3fms", label, elapsed_ms)
+end
+
 def detect_format(input_path)
   base = File.basename(input_path)
   return "csv" if base.match?(/\.csv(?:\.xz)?\z/)
@@ -170,7 +207,8 @@ options = {
   check: true,
   jit: nil,
   bench: true,
-  verbose: false
+  verbose: false,
+  timestamp: false
 }
 
 parser = OptionParser.new do |opts|
@@ -216,8 +254,12 @@ parser = OptionParser.new do |opts|
     options[:bench] = value
   end
 
-  opts.on("--verbose", "print each implementation's stdout/stderr") do
+  opts.on("--verbose", "print each implementation's stdout") do
     options[:verbose] = true
+  end
+
+  opts.on("--timestamp", "print each implementation's stderr") do
+    options[:timestamp] = true
   end
 
   opts.on("--help", "show help") do
@@ -343,20 +385,20 @@ begin
         run.line_count,
         run.sha256
       )
+      next unless options[:timestamp]
+
+      parse_timestamp_points(run.stderr).each do |point|
+        puts format_timestamp_point(point)
+      end
     end
   end
 
   if options[:verbose]
-    puts "verbose output:"
+    puts "verbose stdout:"
     runs.each do |run|
       puts "--- #{run.name} stdout ---"
       print run.stdout
       puts unless run.stdout.end_with?("\n")
-      unless run.stderr.empty?
-        puts "--- #{run.name} stderr ---"
-        print run.stderr
-        puts unless run.stderr.end_with?("\n")
-      end
     end
   end
 

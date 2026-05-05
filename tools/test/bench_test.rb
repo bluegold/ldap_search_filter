@@ -112,4 +112,94 @@ class BenchTest < Minitest::Test
       assert_equal [status_columns.first] * status_columns.size, status_columns
     end
   end
+
+  def test_verbose_outputs_stdout_only
+    Dir.mktmpdir("ldf-bench-test") do |dir|
+      input_path = File.join(dir, "sample.ltsv")
+      config_path = File.join(dir, "bench.yml")
+      build_log_path = File.join(dir, "build.log")
+
+      File.write(input_path, "host:example.com\n", mode: "w")
+      config = {
+        "implementations" => [
+          {
+            "name" => "short",
+            "build" => {
+              "command" => [
+                "ruby",
+                "-e",
+                "File.open(#{build_log_path.inspect}, 'a'){|f| f.puts('shared')}"
+              ]
+            },
+            "command" => [
+              "ruby",
+              "-e",
+              "STDERR.puts('trace:short'); puts '{:host=>\"example.com\"}'"
+            ]
+          }
+        ]
+      }
+      File.write(config_path, Psych.dump(config))
+
+      stdout, stderr, status = run_bench(
+        config_path: config_path,
+        input_path: input_path,
+        args: ["--no-check", "--no-bench", "--verbose"]
+      )
+
+      assert status.success?, stderr
+      assert_includes stdout, "verbose stdout:"
+      assert_includes stdout, "--- short stdout ---"
+      assert_includes stdout, "example.com"
+      refute_includes stdout, "trace:short"
+    end
+  end
+
+  def test_timestamp_summary_is_indented_under_benchmark_rows
+    Dir.mktmpdir("ldf-bench-test") do |dir|
+      input_path = File.join(dir, "sample.ltsv")
+      config_path = File.join(dir, "bench.yml")
+      build_log_path = File.join(dir, "build.log")
+
+      File.write(input_path, "host:example.com\n", mode: "w")
+      config = {
+        "implementations" => [
+          {
+            "name" => "short",
+            "build" => {
+              "command" => [
+                "ruby",
+                "-e",
+                "File.open(#{build_log_path.inspect}, 'a'){|f| f.puts('shared')}"
+              ]
+            },
+            "command" => [
+              "ruby",
+              "-e",
+              "STDERR.puts('phase=boot t=1 elapsed_ns=1'); STDERR.puts('phase=ready t=2 elapsed_ns=2'); STDERR.puts('phase=done t=3 elapsed_ns=3'); puts '{:host=>\"example.com\"}'"
+            ]
+          }
+        ]
+      }
+      File.write(config_path, Psych.dump(config))
+
+      stdout, stderr, status = run_bench(
+        config_path: config_path,
+        input_path: input_path,
+        args: ["--no-check", "--timestamp"]
+      )
+
+      assert status.success?, stderr
+      assert_includes stdout, "benchmark:"
+      benchmark_line = stdout.each_line.find { |line| line.start_with?("short") }
+      assert benchmark_line
+      parse_line = stdout.each_line.find { |line| line.start_with?("  parse") }
+      processing_line = stdout.each_line.find { |line| line.start_with?("  processing") }
+      assert parse_line
+      assert processing_line
+      assert_match(/\A  parse\s+\d+\.\d{3}ms\z/, parse_line.chomp)
+      assert_match(/\A  processing\s+\d+\.\d{3}ms\z/, processing_line.chomp)
+      refute_includes stdout, "  done"
+    end
+  end
 end

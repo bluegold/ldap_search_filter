@@ -37,7 +37,10 @@ Ruby 実装を bundle 経由で使う場合は、`ruby/` ディレクトリで `
 - `--jit` / `--no-jit` で JIT の有無を指定できます
 - ドライバが入力ファイル名から `csv` / `ltsv` を決めて、実装に `--format` を渡します
 - 既定では Ruby 実装を基準に stdout を比較し、あわせて実行時間も表示します
-- `--verbose` を付けると、各実装の stdout / stderr をそのまま表示します
+- `--verbose` を付けると、各実装の stdout をそのまま表示します
+- `--timestamp` を付けると、各実装の stderr に出た `phase=...` を解析して benchmark 行の下に表示します
+- `phase` の `t` と `elapsed_ns` は同じ意味なので、bench では `elapsed_ns` だけ使います
+- 表示上は `ready` を `parse`、`done` を `processing` として出します
 - Ruby 実装は `--format auto|csv|ltsv` を受け付けます
 - Ruby 実装は `stderr` に `phase=boot` / `phase=ready` / `phase=done` を出します
 - Ruby 実装は起動前フラグとして `--jit` / `--no-jit` / `--yjit` / `--no-yjit` / `--yjit-stats` を受け付けます
