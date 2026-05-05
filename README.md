@@ -40,6 +40,8 @@ Ruby 実装を bundle 経由で使う場合は、`ruby/` ディレクトリで `
 - `tools/bench.rb` で各実装を同じフィルタ・同じ入力で実行できます
 - 入力が `.xz` の場合は、ツール側で一時展開します
 - 実装一覧と build 手順は `tools/bench.yml` に書きます
+- `build` に `target` と `sources` を書くと、`target` が `sources` より新しい場合は build を省略します
+- `build` に `size_target` を書くと、`ok` / `up to date` の後ろにそのサイズを表示します。AOT では publish ディレクトリを指すと runtime を含めたサイズを見られます
 - `--jit` / `--no-jit` で JIT の有無を指定できます
 - ドライバが入力ファイル名から `csv` / `ltsv` を決めて、実装に `--format` を渡します
 - 既定では Ruby 実装を基準に stdout を比較し、あわせて実行時間も表示します

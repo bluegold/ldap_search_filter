@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require "digest"
+require "find"
 require "open3"
 require "optparse"
 require "psych"
@@ -66,14 +67,31 @@ def normalize_build(build)
       raise ArgumentError, "build must include command"
     end
 
+    sources = fetch_hash_value(build, "sources")
+    sources =
+      case sources
+      when nil
+        []
+      when Array
+        sources.map(&:to_s)
+      else
+        [sources.to_s]
+      end
+
     {
       command: normalize_command(command),
-      cwd: fetch_hash_value(build, "cwd")&.to_s
+      cwd: fetch_hash_value(build, "cwd")&.to_s,
+      target: fetch_hash_value(build, "target")&.to_s,
+      size_target: fetch_hash_value(build, "size_target")&.to_s,
+      sources: sources
     }
   else
     {
       command: normalize_command(build),
-      cwd: nil
+      cwd: nil,
+      target: nil,
+      size_target: nil,
+      sources: []
     }
   end
 end
@@ -143,10 +161,37 @@ def build_summary_line(names, status, width)
   format("%-#{width}s %s", label, status)
 end
 
+def binary_size_label(bytes)
+  units = %w[B KiB MiB GiB TiB]
+  value = bytes.to_f
+  unit = units.shift
+
+  while value >= 1024.0 && !units.empty?
+    value /= 1024.0
+    unit = units.shift
+  end
+
+  if unit == "B"
+    "#{bytes}B"
+  else
+    format("%.1f%s", value, unit)
+  end
+end
+
 def display_width(implementations, build_specs)
   run_width = implementations.map { |impl| fetch_hash_value(impl, "name").to_s.length }.max || 0
   build_width = build_specs.values.flat_map { |spec| spec[:names] }.map(&:length).max || 0
   [12, run_width, build_width].max
+end
+
+def build_spec_key(spec)
+  [
+    spec[:cwd],
+    spec[:target],
+    spec[:size_target],
+    spec[:sources].sort,
+    spec[:command]
+  ].flatten.join("\u0000")
 end
 
 def format_seconds(seconds)
@@ -191,6 +236,72 @@ def format_timestamp_point(point)
     end
 
   format("  %-10s %10.3fms", label, elapsed_ms)
+end
+
+def build_target_path(spec, repo_root)
+  return nil unless spec[:target] && !spec[:target].empty?
+
+  chdir = spec[:cwd] ? File.expand_path(spec[:cwd], repo_root) : repo_root
+  File.expand_path(spec[:target], chdir)
+end
+
+def build_size_path(spec, repo_root)
+  candidate = spec[:size_target] && !spec[:size_target].empty? ? spec[:size_target] : spec[:target]
+  return nil unless candidate && !candidate.empty?
+
+  chdir = spec[:cwd] ? File.expand_path(spec[:cwd], repo_root) : repo_root
+  File.expand_path(candidate, chdir)
+end
+
+def build_source_paths(spec, repo_root)
+  chdir = spec[:cwd] ? File.expand_path(spec[:cwd], repo_root) : repo_root
+  spec[:sources].flat_map do |source|
+    pattern = File.expand_path(source, chdir)
+    matches = Dir.glob(pattern, File::FNM_EXTGLOB | File::FNM_DOTMATCH)
+    if matches.empty?
+      raise ArgumentError, "build source not found: #{source}"
+    end
+
+    matches.select { |path| File.file?(path) }
+  end.uniq
+end
+
+def build_size_bytes(spec, repo_root)
+  path = build_size_path(spec, repo_root)
+  return nil unless path && File.exist?(path)
+
+  if File.directory?(path)
+    total = 0
+    Find.find(path) do |entry|
+      next unless File.file?(entry)
+
+      total += File.size(entry)
+    end
+    total
+  else
+    File.size(path)
+  end
+end
+
+def build_stale?(spec, repo_root)
+  return true if spec[:target].nil? || spec[:target].empty? || spec[:sources].empty?
+
+  target_path = build_target_path(spec, repo_root)
+  return true unless File.exist?(target_path)
+
+  target_mtime = File.mtime(target_path)
+  build_source_paths(spec, repo_root).each do |source_path|
+    return true unless File.exist?(source_path)
+    return true if File.mtime(source_path) > target_mtime
+  end
+
+  false
+end
+
+def build_status_text(status, spec, repo_root)
+  size_bytes = build_size_bytes(spec, repo_root)
+  size_text = size_bytes ? " size=#{binary_size_label(size_bytes)}" : ""
+  "#{status}#{size_text}"
 end
 
 def detect_format(input_path)
@@ -311,7 +422,7 @@ begin
     next unless build
 
     spec = normalize_build(build)
-    key = [spec[:cwd], spec[:command]].flatten.join("\u0000")
+    key = build_spec_key(spec)
     build_specs[key] ||= spec.merge(names: [])
     build_specs[key][:names] << name
   end
@@ -322,18 +433,22 @@ begin
   width = display_width(implementations, build_specs)
   build_specs.each_value do |spec|
     chdir = spec[:cwd] ? File.expand_path(spec[:cwd], repo_root) : repo_root
-    result = run_command(spec[:command], repo_root, chdir: chdir)
-    unless result.status.success?
-      puts "build: failed"
-      puts "command: #{spec[:command].join(' ')}"
-      puts "stdout"
-      puts excerpt(result.stdout)
-      puts "stderr"
-      puts excerpt(result.stderr)
-      exit 1
-    end
+    if build_stale?(spec, repo_root)
+      result = run_command(spec[:command], repo_root, chdir: chdir)
+      unless result.status.success?
+        puts "build: failed"
+        puts "command: #{spec[:command].join(' ')}"
+        puts "stdout"
+        puts excerpt(result.stdout)
+        puts "stderr"
+        puts excerpt(result.stderr)
+        exit 1
+      end
 
-    puts build_summary_line(spec[:names], "ok", width)
+      puts build_summary_line(spec[:names], build_status_text("ok", spec, repo_root), width)
+    else
+      puts build_summary_line(spec[:names], build_status_text("up to date", spec, repo_root), width)
+    end
   end
 
   runs = implementations.map do |impl|

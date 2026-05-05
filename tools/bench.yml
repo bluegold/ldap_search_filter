@@ -11,6 +11,11 @@ implementations:
   - name: typescript
     build: &typescript_build
       cwd: typescript
+      target: dist/index.js
+      sources:
+        - src/**/*.ts
+        - package.json
+        - tsconfig.json
       command:
         - tsc
         - -p
@@ -36,6 +41,10 @@ implementations:
   - name: csharp
     build:
       cwd: csharp
+      target: bin/Release/net10.0/LdapFilter.dll
+      sources:
+        - "*.csproj"
+        - Program.cs
       command:
         - env
         - DOTNET_CLI_HOME=/tmp/ldf-dotnet
@@ -61,6 +70,7 @@ implementations:
     build:
       cwd: csharp-aot
       target: bin/Release/net10.0/linux-x64/publish/LdapFilter.Aot
+      size_target: bin/Release/net10.0/linux-x64/publish
       sources:
         - LdapFilter.Aot.csproj
         - ../csharp/Program.cs
@@ -112,6 +122,11 @@ implementations:
   - name: rust
     build:
       cwd: rust
+      target: target/release/ldf
+      sources:
+        - Cargo.toml
+        - Cargo.lock
+        - src/**/*.rs
       command:
         - cargo
         - build
@@ -127,6 +142,10 @@ implementations:
   - name: go
     build:
       cwd: go
+      target: bin/ldap_filter
+      sources:
+        - "*.go"
+        - go.mod
       command:
         - env
         - GOCACHE=/tmp/ldf-gocache
@@ -145,6 +164,10 @@ implementations:
   - name: go-switch
     build:
       cwd: go-switch
+      target: bin/ldap_filter
+      sources:
+        - "*.go"
+        - go.mod
       command:
         - env
         - GOCACHE=/tmp/ldf-gocache

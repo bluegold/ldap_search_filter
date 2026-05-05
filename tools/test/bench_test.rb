@@ -65,6 +65,33 @@ class BenchTest < Minitest::Test
     File.write(path, Psych.dump(config))
   end
 
+  def write_incremental_build_config(path, build_log_path, target_path:, source_path:, size_target: nil)
+    config = {
+      "implementations" => [
+        {
+          "name" => "incremental",
+          "build" => {
+            "target" => target_path,
+            "size_target" => size_target,
+            "sources" => [source_path],
+            "command" => [
+              "ruby",
+              "-e",
+              "File.open(#{build_log_path.inspect}, 'a'){|f| f.puts('built')}"
+            ]
+          },
+          "command" => [
+            "ruby",
+            "-e",
+            "puts '{:host=>\"example.com\"}'"
+          ]
+        }
+      ]
+    }
+
+    File.write(path, Psych.dump(config))
+  end
+
   def test_build_commands_are_deduplicated_by_signature
     Dir.mktmpdir("ldf-bench-test") do |dir|
       input_path = File.join(dir, "sample.ltsv")
@@ -110,6 +137,90 @@ class BenchTest < Minitest::Test
 
       status_columns = benchmark_lines.map { |line| line.index("ok") }
       assert_equal [status_columns.first] * status_columns.size, status_columns
+    end
+  end
+
+  def test_build_is_skipped_when_target_is_newer_than_sources
+    Dir.mktmpdir("ldf-bench-test") do |dir|
+      input_path = File.join(dir, "sample.ltsv")
+      config_path = File.join(dir, "bench.yml")
+      build_log_path = File.join(dir, "build.log")
+      source_path = File.join(dir, "source.rb")
+      target_path = File.join(dir, "target.bin")
+      size_dir = File.join(dir, "size")
+
+      File.write(input_path, "host:example.com\n", mode: "w")
+      File.write(source_path, "source\n", mode: "w")
+      File.write(target_path, "target\n", mode: "w")
+      Dir.mkdir(size_dir)
+      File.write(File.join(size_dir, "one.txt"), "abc", mode: "w")
+      File.write(File.join(size_dir, "two.txt"), "defg", mode: "w")
+      File.write(build_log_path, "", mode: "w")
+      older = Time.now - 60
+      newer = Time.now
+      File.utime(older, older, source_path)
+      File.utime(newer, newer, target_path)
+      write_incremental_build_config(
+        config_path,
+        build_log_path,
+        target_path: target_path,
+        source_path: source_path,
+        size_target: size_dir
+      )
+
+      stdout, stderr, status = run_bench(
+        config_path: config_path,
+        input_path: input_path,
+        args: ["--no-check", "--no-bench"]
+      )
+
+      assert status.success?, stderr
+      assert_equal "", File.read(build_log_path)
+      assert_includes stdout, "build:"
+      assert_includes stdout, "up to date"
+      assert_includes stdout, "size=7B"
+    end
+  end
+
+  def test_build_runs_when_source_is_newer_than_target
+    Dir.mktmpdir("ldf-bench-test") do |dir|
+      input_path = File.join(dir, "sample.ltsv")
+      config_path = File.join(dir, "bench.yml")
+      build_log_path = File.join(dir, "build.log")
+      source_path = File.join(dir, "source.rb")
+      target_path = File.join(dir, "target.bin")
+      size_dir = File.join(dir, "size")
+
+      File.write(input_path, "host:example.com\n", mode: "w")
+      File.write(source_path, "source\n", mode: "w")
+      File.write(target_path, "target\n", mode: "w")
+      Dir.mkdir(size_dir)
+      File.write(File.join(size_dir, "one.txt"), "abc", mode: "w")
+      File.write(File.join(size_dir, "two.txt"), "defg", mode: "w")
+      File.write(build_log_path, "", mode: "w")
+      older = Time.now - 60
+      newer = Time.now
+      File.utime(older, older, target_path)
+      File.utime(newer, newer, source_path)
+      write_incremental_build_config(
+        config_path,
+        build_log_path,
+        target_path: target_path,
+        source_path: source_path,
+        size_target: size_dir
+      )
+
+      stdout, stderr, status = run_bench(
+        config_path: config_path,
+        input_path: input_path,
+        args: ["--no-check", "--no-bench"]
+      )
+
+      assert status.success?, stderr
+      assert_equal ["built"], File.read(build_log_path).lines.map(&:strip)
+      assert_includes stdout, "build:"
+      assert_includes stdout, "ok"
+      assert_includes stdout, "size=7B"
     end
   end
 
