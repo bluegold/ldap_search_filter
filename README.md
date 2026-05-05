@@ -20,6 +20,7 @@ Ruby 実装を bundle 経由で使う場合は、`ruby/` ディレクトリで `
 
 - `ruby/` - Ruby 実装のサンプル
 - `typescript/` - TypeScript 実装
+- `csharp/` - C# / .NET 10 実装
 - `data/` - ベンチマーク用データ置き場
 
 ## `data/` について
@@ -48,10 +49,15 @@ Ruby 実装を bundle 経由で使う場合は、`ruby/` ディレクトリで `
 - TypeScript 実装は `node` と `bun` の両方で実行できます
 - `tools/bench.yml` では TypeScript の `node` 実行を `typescript`、`bun` 実行を `typescript-bun` として定義しています
 - TypeScript 実装は `tools/bench.rb` で `tsc -p tsconfig.json` を build として実行してから、`node dist/index.js ...` または `bun dist/index.js ...` を使います
+- C# 実装は .NET 10 で動きます
+- `tools/bench.yml` では C# 実装を `csharp` として定義しています
+- C# 実装は `tools/bench.rb` で `dotnet build -c Release` を build として実行してから、`dotnet csharp/bin/Release/net10.0/LdapFilter.dll ...` を使います
 
 TypeScript 実装を手動で使う場合は、`typescript/` ディレクトリで `tsc -p tsconfig.json` を実行してから、`node dist/index.js ...` または `bun dist/index.js ...` を使ってください。
 
 TypeScript 実装のテストは `typescript/` ディレクトリで `npm test` を実行します。build も含めて確認します。
+
+`csharp/` の unit test は `cd csharp && env DOTNET_CLI_HOME=/tmp/ldf-dotnet DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 DOTNET_NOLOGO=1 dotnet run --project tests/LdapFilter.Tests.csproj -c Release` で実行します。
 
 `tools/bench.rb` のテストは `ruby tools/test/bench_test.rb` で実行します。
 

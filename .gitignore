@@ -1,4 +1,8 @@
 /.codex
 /.mise
 /data/*.xz
+/csharp/bin/
+/csharp/obj/
+/csharp/tests/bin/
+/csharp/tests/obj/
 /.envrc
