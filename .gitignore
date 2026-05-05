@@ -8,4 +8,6 @@
 /zig/zig-out/
 /zig/zig-cache/
 /rust/target/
+/go/bin/
+/go-switch/bin/
 /.envrc

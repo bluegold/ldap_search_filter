@@ -2,7 +2,7 @@ set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
 default: test
 
-test: test-ruby test-typescript test-csharp test-zig test-rust test-tools
+test: test-ruby test-typescript test-csharp test-zig test-rust test-go test-go-switch test-tools
 
 test-ruby:
 	cd ruby && bundle exec ruby -Itest test/test_ldap_filter.rb
@@ -18,6 +18,12 @@ test-zig:
 
 test-rust:
 	cd rust && cargo test
+
+test-go:
+	cd go && env GOCACHE=/tmp/ldf-gocache go test ./...
+
+test-go-switch:
+	cd go-switch && env GOCACHE=/tmp/ldf-gocache go test ./...
 
 test-tools:
 	ruby tools/test/bench_test.rb

@@ -92,3 +92,39 @@ implementations:
       - "{format}"
       - "{filter}"
       - "{input}"
+  - name: go
+    build:
+      cwd: go
+      command:
+        - env
+        - GOCACHE=/tmp/ldf-gocache
+        - go
+        - build
+        - -o
+        - bin/ldap_filter
+        - .
+    command:
+      - go/bin/ldap_filter
+      - "{jit_flag}"
+      - --format
+      - "{format}"
+      - "{filter}"
+      - "{input}"
+  - name: go-switch
+    build:
+      cwd: go-switch
+      command:
+        - env
+        - GOCACHE=/tmp/ldf-gocache
+        - go
+        - build
+        - -o
+        - bin/ldap_filter
+        - .
+    command:
+      - go-switch/bin/ldap_filter
+      - "{jit_flag}"
+      - --format
+      - "{format}"
+      - "{filter}"
+      - "{input}"

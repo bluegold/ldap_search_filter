@@ -23,6 +23,8 @@ Ruby 実装を bundle 経由で使う場合は、`ruby/` ディレクトリで `
 - `csharp/` - C# / .NET 10 実装
 - `zig/` - Zig 実装
 - `rust/` - Rust 実装
+- `go/` - Go 実装
+- `go-switch/` - Go の struct + switch 実装
 - `data/` - ベンチマーク用データ置き場
 
 ## `data/` について
@@ -58,6 +60,10 @@ Ruby 実装を bundle 経由で使う場合は、`ruby/` ディレクトリで `
 - Zig 実装は `tools/bench.rb` で `zig build -Doptimize=ReleaseFast` を build として実行してから、`zig/zig-out/bin/ldap_filter ...` を使います
 - Rust 実装は `tools/bench.yml` では `rust` として定義しています
 - Rust 実装は `tools/bench.rb` で `cargo build --release --locked` を build として実行してから、`rust/target/release/ldf ...` を使います
+- Go 実装は `tools/bench.yml` では `go` として定義しています
+- Go 実装は `tools/bench.rb` で `env GOCACHE=/tmp/ldf-gocache go build -o bin/ldap_filter .` を build として実行してから、`go/bin/ldap_filter ...` を使います
+- Go の比較版は `tools/bench.yml` では `go-switch` として定義しています
+- Go の比較版は `tools/bench.rb` で `env GOCACHE=/tmp/ldf-gocache go build -o bin/ldap_filter .` を build として実行してから、`go-switch/bin/ldap_filter ...` を使います
 
 TypeScript 実装を手動で使う場合は、`typescript/` ディレクトリで `tsc -p tsconfig.json` を実行してから、`node dist/index.js ...` または `bun dist/index.js ...` を使ってください。
 
@@ -68,6 +74,10 @@ TypeScript 実装のテストは `typescript/` ディレクトリで `npm test` 
 `zig/` の unit test は `cd zig && zig build test` で実行します。
 
 `rust/` の unit test は `cd rust && cargo test` で実行します。
+
+`go/` の unit test は `cd go && env GOCACHE=/tmp/ldf-gocache go test ./...` で実行します。
+
+`go-switch/` の unit test は `cd go-switch && env GOCACHE=/tmp/ldf-gocache go test ./...` で実行します。
 
 `tools/bench.rb` のテストは `ruby tools/test/bench_test.rb` で実行します。
 
