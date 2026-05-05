@@ -1,0 +1,7 @@
+implementations:
+  - name: ruby
+    command:
+      - ruby
+      - ruby/ldap_filter.rb
+      - "{filter}"
+      - "{input}"
