@@ -9,7 +9,7 @@ import (
 
 func TestParseAndMatch(t *testing.T) {
 	attrs := newOrderedAttrs()
-	host := "www.kentei.ne.jp"
+	host := "www.example.com"
 	status := "200"
 	attrs.add("host", &host)
 	attrs.add("status", &status)

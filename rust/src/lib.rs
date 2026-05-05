@@ -912,7 +912,7 @@ mod tests {
     fn evaluates_logical_expression_and_approximate_match() {
         let attrs = OrderedAttrs {
             items: vec![
-                ("host".to_string(), Some("www.kentei.ne.jp".to_string())),
+                ("host".to_string(), Some("www.example.com".to_string())),
                 ("status".to_string(), Some("200".to_string())),
                 ("cn".to_string(), Some("foo bar".to_string())),
             ],
@@ -923,7 +923,7 @@ mod tests {
             &attrs
         ));
         assert!(evaluate_filter(
-            &parse_filter("(host~=www.kentei.nejp)").unwrap(),
+            &parse_filter("(host~=www.example.com)").unwrap(),
             &attrs
         ));
     }

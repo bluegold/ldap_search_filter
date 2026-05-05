@@ -29,7 +29,7 @@ class LdapFilterEvaluatorTest < Minitest::Test
     evaluator = LdapFilterEvaluator.new("(&(host=www.*)(status=200))", keytype: :symbol)
 
     attrs = {
-      host: "www.kentei.ne.jp",
+      host: "www.example.com",
       status: "200"
     }
 

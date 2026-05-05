@@ -26,7 +26,7 @@ test("evaluateFilter handles logical expressions", () => {
 
   assert.equal(
     evaluateFilter(node, {
-      host: "www.kentei.ne.jp",
+      host: "www.example.com",
       status: "200"
     }),
     true
