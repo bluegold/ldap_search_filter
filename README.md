@@ -38,76 +38,100 @@ Ruby 実装を bundle 経由で使う場合は、`ruby/` ディレクトリで `
 
 ## 動作確認とベンチマーク
 
-- `tools/bench.rb` で各実装を同じフィルタ・同じ入力で実行できます
-- 入力が `.xz` の場合は、ツール側で一時展開します
-- 実装一覧と build 手順は `tools/bench.yml` に書きます
-- `build` に `target` と `sources` を書くと、`target` が `sources` より新しい場合は build を省略します
-- `build` に `size_target` を書くと、`ok` / `up to date` の後ろにそのサイズを表示します。AOT では publish ディレクトリを指すと runtime を含めたサイズを見られます
-- `--jit` / `--no-jit` で JIT の有無を指定できます
-- ドライバが入力ファイル名から `csv` / `ltsv` を決めて、実装に `--format` を渡します
-- 既定では Ruby 実装を基準に stdout を比較し、あわせて実行時間も表示します
-- `--verbose` を付けると、各実装の stdout をそのまま表示します
-- `--timestamp` を付けると、各実装の stderr に出た `phase=...` を解析して benchmark 行の下に表示します
-- `phase` の `t` と `elapsed_ns` は同じ意味なので、bench では `elapsed_ns` だけ使います
-- 表示上は `ready` を `parse`、`done` を `processing` として出します
-- Ruby 実装は `--format auto|csv|ltsv` を受け付けます
-- Ruby 実装は `stderr` に `phase=boot` / `phase=ready` / `phase=done` を出します
-- Ruby 実装は起動前フラグとして `--jit` / `--no-jit` / `--yjit` / `--no-yjit` / `--yjit-stats` を受け付けます
-- TypeScript 実装は `--jit` / `--no-jit` を受け取りますが、現時点では no-op です
-- TypeScript 実装は `node` と `bun` の両方で実行できます
-- `tools/bench.yml` では TypeScript の `node` 実行を `typescript`、`bun` 実行を `typescript-bun` として定義しています
-- TypeScript 実装は `tools/bench.rb` で `tsc -p tsconfig.json` を build として実行してから、`node dist/index.js ...` または `bun dist/index.js ...` を使います
-- Python 実装は `tools/bench.yml` では `python` として定義しています
-- Python 実装は `tools/bench.rb` で `python3 python/ldap_filter.py ...` を使います
-- C# 実装は .NET 10 で動きます
-- `tools/bench.yml` では C# 実装を `csharp` として定義しています
-- C# 実装は `tools/bench.rb` で `dotnet build -c Release` を build として実行してから、`dotnet csharp/bin/Release/net10.0/LdapFilter.dll ...` を使います
-- C# NativeAOT 実装は `tools/bench.yml` では `csharp-aot` として定義しています
-- C# NativeAOT 実装は `tools/bench.rb` で `dotnet publish -c Release -r linux-x64 -p:PublishAot=true -p:SelfContained=true` を build として実行してから、`csharp-aot/bin/Release/net10.0/linux-x64/publish/LdapFilter.Aot ...` を使います
-- Zig 実装は `tools/bench.yml` では `zig` として定義しています
-- Zig 実装は `tools/bench.rb` で `zig build -Doptimize=ReleaseFast` を build として実行してから、`zig/zig-out/bin/ldap_filter ...` を使います
-- Rust 実装は `tools/bench.yml` では `rust` として定義しています
-- Rust 実装は `tools/bench.rb` で `cargo build --release --locked` を build として実行してから、`rust/target/release/ldf ...` を使います
-- Go 実装は `tools/bench.yml` では `go` として定義しています
-- Go 実装は `tools/bench.rb` で `go build -o bin/ldap_filter .` を build として実行してから、`go/bin/ldap_filter ...` を使います
-- Go の比較版は `tools/bench.yml` では `go-switch` として定義しています
-- Go の比較版は `tools/bench.rb` で `go build -o bin/ldap_filter .` を build として実行してから、`go-switch/bin/ldap_filter ...` を使います
+各実装の動作確認とパフォーマンス計測のために、Ruby 製のベンチマークドライバ `tools/bench.rb` を用意しています。
 
-TypeScript 実装を手動で使う場合は、`typescript/` ディレクトリで `tsc -p tsconfig.json` を実行してから、`node dist/index.js ...` または `bun dist/index.js ...` を使ってください。
+### ベンチマークツール (`tools/bench.rb`)
 
-TypeScript 実装のテストは `typescript/` ディレクトリで `npm test` を実行します。build も含めて確認します。
+各言語の実装を同一のフィルタと入力データで実行し、標準出力の一致確認（Ruby 実装を正解とする）と実行時間の計測を自動で行います。
 
-Python 実装のテストは `cd python && python3 -m unittest discover -s test -p 'test_*.py'` で実行します。
+- **基本コマンド**:
+  ```bash
+  ruby tools/bench.rb --filter '(uid=foo)' --input data/access.log.xz
+  ```
+- **主なオプション**:
+  - `--jit` / `--no-jit`: JIT 有効化の切り替え（実装が対応している場合）
+  - `--verbose`: 各実装の標準出力をそのまま表示
+  - `--timestamp`: 各実装が stderr に出力する `phase=...` を解析して表示。`ready` を `parse`、`done` を `processing` として集計します（`t` と `elapsed_ns` は同一視されます）。
+- **ベンチマークの定義 (`tools/bench.yml`)**:
+  - 各実装のビルド手順や実行コマンドを定義します。
+  - `target` と `sources` を指定することで、ソース変更がない場合のビルド省略が可能です。
+  - `size_target` を指定すると、ビルド後のバイナリサイズを表示できます。NativeAOT 等では publish ディレクトリを指定することで、ランタイムを含めたサイズを確認できます。
 
-`csharp/` の unit test は `cd csharp && dotnet run --project tests/LdapFilter.Tests.csproj -c Release` で実行します。
+### 実装一覧
 
-`csharp-aot/` の smoke test は `cd csharp-aot && dotnet publish LdapFilter.Aot.csproj -c Release -r linux-x64 -p:PublishAot=true -p:SelfContained=true` の後に、生成された NativeAOT バイナリを 1 回実行して確認します。
-スモーク用の実行内容は [csharp-aot/test-smoke.sh](csharp-aot/test-smoke.sh) に置いてあります。
+| 名前 | 言語 | 実行環境 / ビルド方法 | 特徴・備考 |
+| :--- | :--- | :--- | :--- |
+| `ruby` | Ruby | CRuby 3.3+ | 基準実装。`--yjit` などのフラグに対応 |
+| `typescript` | TypeScript | Node.js | `tsc` でビルド |
+| `typescript-bun`| TypeScript | Bun | `typescript` と同一ソース |
+| `python` | Python | Python 3 | |
+| `csharp` | C# | .NET 10 | |
+| `csharp-aot` | C# | .NET 10 (NativeAOT) | `dotnet publish` による自己完結型バイナリ |
+| `zig` | Zig | Zig 0.13+ | `ReleaseFast` 最適化 |
+| `rust` | Rust | Rust (Cargo) | `--release` 最適化 |
+| `go` | Go | Go | |
+| `go-switch` | Go | Go | `struct + switch` による最適化版 |
 
-`zig/` の unit test は `cd zig && zig build test` で実行します。
+### テストの実行
 
-`rust/` の unit test は `cd rust && cargo test` で実行します。
+プロジェクト全体のテストは `just` を使用してまとめて実行できます。
 
-`go/` の unit test は `cd go && go test ./...` で実行します。
+```bash
+just test
+```
 
-`go-switch/` の unit test は `cd go-switch && go test ./...` で実行します。
+各言語ごとの個別テスト実行コマンド：
 
-`tools/bench.rb` のテストは `ruby tools/test/bench_test.rb` で実行します。
+| 対象 | コマンド |
+| :--- | :--- |
+| **Ruby** | `cd ruby && bundle exec ruby -Itest test/test_ldap_filter.rb` |
+| **TypeScript** | `cd typescript && npm test` |
+| **Python** | `cd python && python3 -m unittest discover -s test -p 'test_*.py'` |
+| **C#** | `cd csharp && dotnet run --project tests/LdapFilter.Tests.csproj -c Release` |
+| **C# (AOT)** | `cd csharp-aot && ./test-smoke.sh` (ビルド後実行) |
+| **Zig** | `cd zig && zig build test` |
+| **Rust** | `cd rust && cargo test` |
+| **Go** | `cd go && go test ./...` |
+| **Go (Switch)** | `cd go-switch && go test ./...` |
+| **Bench Tool** | `ruby tools/test/bench_test.rb` |
 
-まとめて実行する場合は `just test` を使います。
+### 実行例
 
-例:
+**ベンチマークツールの実行:**
+```bash
+ruby tools/bench.rb --filter '(uid=foo)' --input data/access.log.xz
+```
 
+**Ruby 実装の直接実行:**
 ```bash
 cd ruby
 bundle exec ruby ./ldap_filter.rb --jit --format ltsv '(host=*)' ../data/access.log.xz
 ```
 
-例:
-
+**TypeScript 実装 (Node.js) の手動ビルドと実行:**
 ```bash
-ruby tools/bench.rb --filter '(uid=foo)' --input data/access.log.xz
+cd typescript
+npx tsc -p tsconfig.json
+node dist/index.js --format ltsv '(host=*)' ../data/access.log.xz
 ```
+
+
+## LDAP フィルタの例
+
+動作確認に使用できる、RFC 4515 に準拠したフィルタの例です。
+
+- `(&(objectCategory=person)(objectClass=contact)(|(sn=Smith)(sn=Johnson)))`
+    - `objectCategory` が `person` かつ `objectClass` が `contact` で、かつ `sn` が `Smith` または `Johnson` であるもの
+- `(&(attr1=a)(&(attr2=b)(&(attr3=c)(attr4=d))))`
+    - `attr1=a`, `attr2=b`, `attr3=c`, `attr4=d` のすべてを満たすもの（AND のネスト）
+- `(|(cn=super)(!(ou=tmp))(&(cn=kaneko)(ou=hoge)))`
+    - `cn` が `super` であるか、`ou` が `tmp` 以外であるか、または `cn` が `kaneko` かつ `ou` が `hoge` であるもの
+- `(|(cn=super)(&(cn=kaneko)(ou=hoge)))`
+    - `cn` が `super` であるか、または `cn` が `kaneko` かつ `ou` が `hoge` であるもの
+- `(&(objectClass=Person)(|(sn=Jensen)(cn=Babs J*)))`
+    - `objectClass` が `Person` で、かつ `sn` が `Jensen` または `cn` が `Babs J` で始まるもの
+
+※ `!` (NOT) 演算子は RFC 4515 の規定により単一のフィルタのみを引数に取ります。複数の条件を否定したい場合は `(!(&(attr1=val1)(attr2=val2)))` のように `&` や `|` と組み合わせて記述します。
 
 ## 実装方針
 
