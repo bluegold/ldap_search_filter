@@ -2,7 +2,7 @@ set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
 default: test
 
-test: test-ruby test-typescript test-csharp test-zig test-rust test-go test-go-switch test-tools
+test: test-ruby test-typescript test-csharp test-csharp-aot test-zig test-rust test-go test-go-switch test-tools
 
 test-ruby:
 	cd ruby && bundle exec ruby -Itest test/test_ldap_filter.rb
@@ -12,6 +12,10 @@ test-typescript:
 
 test-csharp:
 	cd csharp && env DOTNET_CLI_HOME=/tmp/ldf-dotnet DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 DOTNET_NOLOGO=1 dotnet run --project tests/LdapFilter.Tests.csproj -c Release
+
+test-csharp-aot:
+	cd csharp-aot && env DOTNET_CLI_HOME=/tmp/ldf-dotnet DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 DOTNET_NOLOGO=1 dotnet publish LdapFilter.Aot.csproj -c Release -r linux-x64 -p:PublishAot=true -p:SelfContained=true
+	cd csharp-aot && bash ./test-smoke.sh
 
 test-zig:
 	cd zig && env ZIG_GLOBAL_CACHE_DIR=/tmp/ldf-zig-cache ZIG_LOCAL_CACHE_DIR=/tmp/ldf-zig-cache-local zig build test

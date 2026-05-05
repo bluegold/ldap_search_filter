@@ -21,6 +21,7 @@ Ruby 実装を bundle 経由で使う場合は、`ruby/` ディレクトリで `
 - `ruby/` - Ruby 実装のサンプル
 - `typescript/` - TypeScript 実装
 - `csharp/` - C# / .NET 10 実装
+- `csharp-aot/` - C# / .NET 10 NativeAOT 実装
 - `zig/` - Zig 実装
 - `rust/` - Rust 実装
 - `go/` - Go 実装
@@ -56,6 +57,8 @@ Ruby 実装を bundle 経由で使う場合は、`ruby/` ディレクトリで `
 - C# 実装は .NET 10 で動きます
 - `tools/bench.yml` では C# 実装を `csharp` として定義しています
 - C# 実装は `tools/bench.rb` で `dotnet build -c Release` を build として実行してから、`dotnet csharp/bin/Release/net10.0/LdapFilter.dll ...` を使います
+- C# NativeAOT 実装は `tools/bench.yml` では `csharp-aot` として定義しています
+- C# NativeAOT 実装は `tools/bench.rb` で `dotnet publish -c Release -r linux-x64 -p:PublishAot=true -p:SelfContained=true` を build として実行してから、`csharp-aot/bin/Release/net10.0/linux-x64/publish/LdapFilter.Aot ...` を使います
 - Zig 実装は `tools/bench.yml` では `zig` として定義しています
 - Zig 実装は `tools/bench.rb` で `zig build -Doptimize=ReleaseFast` を build として実行してから、`zig/zig-out/bin/ldap_filter ...` を使います
 - Rust 実装は `tools/bench.yml` では `rust` として定義しています
@@ -70,6 +73,9 @@ TypeScript 実装を手動で使う場合は、`typescript/` ディレクトリ�
 TypeScript 実装のテストは `typescript/` ディレクトリで `npm test` を実行します。build も含めて確認します。
 
 `csharp/` の unit test は `cd csharp && env DOTNET_CLI_HOME=/tmp/ldf-dotnet DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 DOTNET_NOLOGO=1 dotnet run --project tests/LdapFilter.Tests.csproj -c Release` で実行します。
+
+`csharp-aot/` の smoke test は `cd csharp-aot && env DOTNET_CLI_HOME=/tmp/ldf-dotnet DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 DOTNET_NOLOGO=1 dotnet publish LdapFilter.Aot.csproj -c Release -r linux-x64 -p:PublishAot=true -p:SelfContained=true` の後に、生成された NativeAOT バイナリを 1 回実行して確認します。
+スモーク用の実行内容は [csharp-aot/test-smoke.sh](csharp-aot/test-smoke.sh) に置いてあります。
 
 `zig/` の unit test は `cd zig && zig build test` で実行します。
 

@@ -5,6 +5,8 @@
 /csharp/obj/
 /csharp/tests/bin/
 /csharp/tests/obj/
+/csharp-aot/bin/
+/csharp-aot/obj/
 /zig/zig-out/
 /zig/zig-cache/
 /rust/target/

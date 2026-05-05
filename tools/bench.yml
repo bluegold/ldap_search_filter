@@ -57,9 +57,41 @@ implementations:
       - "{format}"
       - "{filter}"
       - "{input}"
+  - name: csharp-aot
+    build:
+      cwd: csharp-aot
+      target: bin/Release/net10.0/linux-x64/publish/LdapFilter.Aot
+      sources:
+        - LdapFilter.Aot.csproj
+        - ../csharp/Program.cs
+      command:
+        - env
+        - DOTNET_CLI_HOME=/tmp/ldf-dotnet
+        - DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
+        - DOTNET_NOLOGO=1
+        - dotnet
+        - publish
+        - LdapFilter.Aot.csproj
+        - -c
+        - Release
+        - -r
+        - linux-x64
+        - -p:PublishAot=true
+        - -p:SelfContained=true
+    command:
+      - csharp-aot/bin/Release/net10.0/linux-x64/publish/LdapFilter.Aot
+      - "{jit_flag}"
+      - --format
+      - "{format}"
+      - "{filter}"
+      - "{input}"
   - name: zig
     build:
       cwd: zig
+      target: zig-out/bin/ldap_filter
+      sources:
+        - build.zig
+        - src/**/*.zig
       command:
         - env
         - ZIG_GLOBAL_CACHE_DIR=/tmp/ldf-zig-cache
