@@ -192,3 +192,12 @@ implementations:
       - "{format}"
       - "{filter}"
       - "{input}"
+  - name: php
+    command:
+      - php
+      - php/ldap_filter.php
+      - "{jit_flag}"
+      - --format
+      - "{format}"
+      - "{filter}"
+      - "{input}"
