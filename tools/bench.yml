@@ -192,6 +192,47 @@ implementations:
       - "{format}"
       - "{filter}"
       - "{input}"
+  - name: python-pyc
+    build:
+      cwd: python
+      target: __pycache__
+      sources:
+        - ldap_filter.py
+      command:
+        - python3
+        - -m
+        - py_compile
+        - ldap_filter.py
+    command:
+      - python3
+      - python/ldap_filter.py
+      - "{jit_flag}"
+      - --format
+      - "{format}"
+      - "{filter}"
+      - "{input}"
+  - name: cpp
+    build:
+      cwd: cpp
+      target: ldap_filter
+      sources:
+        - "*.cpp"
+        - "*.hpp"
+      command:
+        - g++
+        - -std=c++20
+        - -O3
+        - -pipe
+        - -o
+        - ldap_filter
+        - main.cpp
+    command:
+      - cpp/ldap_filter
+      - "{jit_flag}"
+      - --format
+      - "{format}"
+      - "{filter}"
+      - "{input}"
   - name: php
     command:
       - php

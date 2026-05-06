@@ -93,8 +93,8 @@ function testParserAndEvaluator(): void
 
 function testLtsvParsing(): void
 {
-    $attrs = parseLtsvLine("path:line\\t1\tmessage:hello\\nworld\tquoted:backslash\\\\end");
-    assertSameValue('{path: "line\t1", message: "hello\nworld", quoted: "backslash\\\\end"}', inspectAttrs($attrs), 'LTSV parse mismatch');
+    $attrs = parseLtsvLine("path:line\\t1\tmessage:hello\\nworld\tquoted:backslash\\\\end\tempty:");
+    assertSameValue('{path: "line\t1", message: "hello\nworld", quoted: "backslash\\\\end", empty: nil}', inspectAttrs($attrs), 'LTSV parse mismatch');
 }
 
 function testCliCsvAndLtsv(): void

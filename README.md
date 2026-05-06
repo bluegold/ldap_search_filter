@@ -22,6 +22,7 @@ Ruby 実装を bundle 経由で使う場合は、`ruby/` ディレクトリで `
 - `typescript/` - TypeScript 実装
 - `python/` - Python 実装
 - `php/` - PHP 実装
+- `cpp/` - C++ 実装
 - `csharp/` - C# / .NET 10 実装
 - `csharp-aot/` - C# / .NET 10 NativeAOT 実装
 - `zig/` - Zig 実装
@@ -88,7 +89,9 @@ just test
 | **Ruby** | `cd ruby && bundle exec ruby -Itest test/test_ldap_filter.rb` |
 | **TypeScript** | `cd typescript && npm test` |
 | **Python** | `cd python && python3 -m unittest discover -s test -p 'test_*.py'` |
+| **Python (pyc)** | `cd python && python3 -m py_compile ldap_filter.py` |
 | **PHP** | `cd php && php test/test_ldap_filter.php` |
+| **C++** | `cd cpp && g++ -std=c++20 -O3 -pipe -o ldap_filter main.cpp && ./ldap_filter` |
 | **C#** | `cd csharp && dotnet run --project tests/LdapFilter.Tests.csproj -c Release` |
 | **C# (AOT)** | `cd csharp-aot && ./test-smoke.sh` (ビルド後実行) |
 | **Zig** | `cd zig && zig build test` |
@@ -120,6 +123,20 @@ node dist/index.js --format ltsv '(host=*)' ../data/access.log.xz
 **PHP 実装の手動実行:**
 ```bash
 php php/ldap_filter.php --format ltsv '(host=*)' data/access.log.xz
+```
+
+**Python 実装の `.pyc` 事前生成:**
+```bash
+cd python
+python3 -m py_compile ldap_filter.py
+python3 ./ldap_filter.py --format ltsv '(host=*)' ../data/access.log.xz
+```
+
+**C++ 実装の手動ビルドと実行:**
+```bash
+cd cpp
+g++ -std=c++20 -O3 -pipe -o ldap_filter main.cpp
+./ldap_filter --format ltsv '(host=*)' ../data/access.log.xz
 ```
 
 

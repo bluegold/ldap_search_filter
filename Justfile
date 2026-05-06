@@ -2,7 +2,7 @@ set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
 default: test
 
-test: test-ruby test-typescript test-python test-php test-csharp test-csharp-aot test-zig test-rust test-go test-go-switch test-tools
+test: test-ruby test-typescript test-python test-php test-cpp test-csharp test-csharp-aot test-zig test-rust test-go test-go-switch test-tools
 
 test-ruby:
 	cd ruby && bundle exec ruby -Itest test/test_ldap_filter.rb
@@ -15,6 +15,9 @@ test-python:
 
 test-php:
 	cd php && php test/test_ldap_filter.php
+
+test-cpp:
+	cd cpp && g++ -std=c++20 -O3 -pipe -o ldap_filter main.cpp && g++ -std=c++20 -O2 -pipe -o /tmp/ldf-cpp-test tests/test_ldap_filter.cpp && /tmp/ldf-cpp-test
 
 test-csharp:
 	cd csharp && env DOTNET_CLI_HOME=/tmp/ldf-dotnet DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 DOTNET_NOLOGO=1 dotnet run --project tests/LdapFilter.Tests.csproj -c Release

@@ -684,8 +684,12 @@ function parseLtsvLine(string $line): OrderedAttrs
     return $attrs;
 }
 
-function unescapeLtsvValue(string $text): string
+function unescapeLtsvValue(string $text): ?string
 {
+    if ($text === '') {
+        return null;
+    }
+
     return str_replace(['\\\\', '\t', '\n', '\r'], ['\\', "\t", "\n", "\r"], $text);
 }
 

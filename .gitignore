@@ -9,6 +9,7 @@
 /csharp-aot/obj/
 /python/__pycache__/
 /python/test/__pycache__/
+/cpp/ldap_filter
 /zig/zig-out/
 /zig/zig-cache/
 /rust/target/
