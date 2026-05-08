@@ -15,4 +15,5 @@
 /rust/target/
 /go/bin/
 /go-switch/bin/
+/sbcl/ldap_filter
 /.envrc

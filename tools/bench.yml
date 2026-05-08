@@ -242,3 +242,24 @@ implementations:
       - "{format}"
       - "{filter}"
       - "{input}"
+  - name: sbcl
+    build:
+      cwd: sbcl
+      target: ldap_filter
+      sources:
+        - ldap_filter.lisp
+      command:
+        - sbcl
+        - --noinform
+        - --non-interactive
+        - --load
+        - ldap_filter.lisp
+        - --eval
+        - "(sb-ext:save-lisp-and-die \"ldap_filter\" :toplevel #'main :executable t :save-runtime-options t)"
+    command:
+      - sbcl/ldap_filter
+      - "{jit_flag}"
+      - --format
+      - "{format}"
+      - "{filter}"
+      - "{input}"

@@ -73,6 +73,9 @@ Ruby 実装を bundle 経由で使う場合は、`ruby/` ディレクトリで `
 | `rust` | Rust | Rust (Cargo) | `--release` 最適化 |
 | `go` | Go | Go | |
 | `go-switch` | Go | Go | `struct + switch` による最適化版 |
+| `python-pyc` | Python | Python 3 | `py_compile` でバイトコードキャッシュ生成後に実行 |
+| `php` | PHP | PHP | |
+| `sbcl` | Common Lisp | SBCL | `save-lisp-and-die` でスタンドアロンバイナリを生成 |
 
 ### テストの実行
 
@@ -98,6 +101,7 @@ just test
 | **Rust** | `cd rust && cargo test` |
 | **Go** | `cd go && go test ./...` |
 | **Go (Switch)** | `cd go-switch && go test ./...` |
+| **SBCL** | `cd sbcl && sbcl --noinform --non-interactive --load ldap_filter.lisp --load test/test_ldap_filter.lisp` |
 | **Bench Tool** | `ruby tools/test/bench_test.rb` |
 
 ### 実行例
