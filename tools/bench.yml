@@ -263,3 +263,20 @@ implementations:
       - "{format}"
       - "{filter}"
       - "{input}"
+  - name: ghc
+    build:
+      cwd: ghc
+      target: bin/ldap_filter
+      sources:
+        - src/LdapFilter.hs
+        - app/Main.hs
+      command:
+        - bash
+        - build.sh
+    command:
+      - ghc/bin/ldap_filter
+      - "{jit_flag}"
+      - --format
+      - "{format}"
+      - "{filter}"
+      - "{input}"

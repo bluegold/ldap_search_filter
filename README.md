@@ -76,6 +76,7 @@ Ruby 実装を bundle 経由で使う場合は、`ruby/` ディレクトリで `
 | `python-pyc` | Python | Python 3 | `py_compile` でバイトコードキャッシュ生成後に実行 |
 | `php` | PHP | PHP | |
 | `sbcl` | Common Lisp | SBCL | `save-lisp-and-die` でスタンドアロンバイナリを生成 |
+| `ghc` | Haskell | GHC 8.10+ | `ghc -O2` でスタンドアロンバイナリを生成 |
 
 ### テストの実行
 
@@ -102,6 +103,7 @@ just test
 | **Go** | `cd go && go test ./...` |
 | **Go (Switch)** | `cd go-switch && go test ./...` |
 | **SBCL** | `cd sbcl && sbcl --noinform --non-interactive --load ldap_filter.lisp --load test/test_ldap_filter.lisp` |
+| **GHC** | `cd ghc && ghc -O2 -isrc -outputdir /tmp/ghc-ldf-test -o /tmp/ghc-ldf-spec test/Spec.hs && /tmp/ghc-ldf-spec` |
 | **Bench Tool** | `ruby tools/test/bench_test.rb` |
 
 ### 実行例

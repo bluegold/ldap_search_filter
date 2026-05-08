@@ -2,7 +2,7 @@ set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
 default: test
 
-test: test-ruby test-typescript test-python test-php test-cpp test-csharp test-csharp-aot test-zig test-rust test-go test-go-switch test-sbcl test-tools
+test: test-ruby test-typescript test-python test-php test-cpp test-csharp test-csharp-aot test-zig test-rust test-go test-go-switch test-sbcl test-ghc test-tools
 
 test-ruby:
 	cd ruby && bundle exec ruby -Itest test/test_ldap_filter.rb
@@ -40,6 +40,9 @@ test-go-switch:
 
 test-sbcl:
 	cd sbcl && sbcl --noinform --non-interactive --load ldap_filter.lisp --load test/test_ldap_filter.lisp 2>/dev/null
+
+test-ghc:
+	cd ghc && bash test-unit.sh
 
 test-tools:
 	ruby tools/test/bench_test.rb

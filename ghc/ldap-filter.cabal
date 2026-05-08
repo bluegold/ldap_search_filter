@@ -1,0 +1,29 @@
+cabal-version: 2.4
+name:          ldap-filter
+version:       0.1.0.0
+
+common defaults
+  default-language: Haskell2010
+  ghc-options:      -O2 -Wall -Wno-name-shadowing
+
+library
+  import:          defaults
+  exposed-modules: LdapFilter
+  hs-source-dirs:  src
+  build-depends:   base    ^>=4.14.3.0
+                 , process ^>=1.6.13.2
+
+executable ldap_filter
+  import:        defaults
+  main-is:       Main.hs
+  hs-source-dirs: app
+  build-depends: base        ^>=4.14.3.0
+               , ldap-filter
+
+test-suite test-ldap-filter
+  import:        defaults
+  type:          exitcode-stdio-1.0
+  main-is:       Spec.hs
+  hs-source-dirs: test
+  build-depends: base        ^>=4.14.3.0
+               , ldap-filter
