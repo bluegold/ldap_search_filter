@@ -142,6 +142,76 @@ class EvaluatorTest < Minitest::Test
   end
 end
 
+class FilterSemanticsTest < Minitest::Test
+  def test_parser_builds_logical_nodes
+    assert_instance_of LdapFilter::And, LdapFilter::Parser.new.parse("(&(a=1)(b=2))")
+    assert_instance_of LdapFilter::Or, LdapFilter::Parser.new.parse("(|(a=1)(b=2))")
+    assert_instance_of LdapFilter::Not, LdapFilter::Parser.new.parse("(!(a=1))")
+  end
+
+  def test_parser_builds_symbol_attributes_when_requested
+    item = LdapFilter::Parser.new(keytype: :symbol).parse("(host=example.com)")
+
+    assert_equal :host, item.attr
+  end
+
+  def test_parser_rejects_empty_logical_lists_and_unbalanced_filters
+    ["(&)", "(|)", "(!)", "(a=1", "a=1)", "((a=1))"].each do |filter|
+      assert_raises(LdapFilter::Error, filter) do
+        LdapFilter::Parser.new.parse(filter)
+      end
+    end
+  end
+
+  def test_parser_rejects_malformed_escape_sequences
+    ["(a=\\0)", "(a=\\gg)", "(a=trailing\\)"].each do |filter|
+      assert_raises(LdapFilter::Error, filter) do
+        LdapFilter::Parser.new.parse(filter)
+      end
+    end
+  end
+
+  def test_parser_decodes_escaped_parentheses_and_backslash
+    item = LdapFilter::Parser.new.parse("(value=left\\28middle\\29\\5c right)")
+
+    assert_equal "left(middle)\\ right", item.value
+  end
+
+  def test_evaluates_or_and_not
+    assert_equal true, LdapFilter.evaluate("(|(status=404)(status=500))", "status" => "500")
+    assert_equal false, LdapFilter.evaluate("(|(status=404)(status=500))", "status" => "200")
+    assert_equal true, LdapFilter.evaluate("(!(status=200))", "status" => "404")
+    assert_equal false, LdapFilter.evaluate("(!(status=200))", "status" => "200")
+  end
+
+  def test_evaluates_all_comparison_operators
+    assert_equal true, LdapFilter.evaluate("(name~=john)", "name" => "jonn")
+    assert_equal false, LdapFilter.evaluate("(name~=john)", "name" => "smith")
+    assert_equal true, LdapFilter.evaluate("(name~=abcd)", "name" => "ab")
+    assert_equal false, LdapFilter.evaluate("(name~=abcd)", "name" => "a")
+    assert_equal true, LdapFilter.evaluate("(status>=200)", "status" => "200")
+    assert_equal true, LdapFilter.evaluate("(status>=200)", "status" => "404")
+    assert_equal false, LdapFilter.evaluate("(status>=200)", "status" => "199")
+    assert_equal true, LdapFilter.evaluate("(status<=404)", "status" => "404")
+    assert_equal true, LdapFilter.evaluate("(status<=404)", "status" => "200")
+    assert_equal false, LdapFilter.evaluate("(status<=404)", "status" => "500")
+  end
+
+  def test_evaluates_leading_and_embedded_wildcards
+    assert_equal true, LdapFilter.evaluate("(host=*.example.com)", "host" => "www.example.com")
+    assert_equal false, LdapFilter.evaluate("(host=*.example.com)", "host" => "www.example.org")
+    assert_equal true, LdapFilter.evaluate("(host=*example*)", "host" => "www.example.com")
+    assert_equal false, LdapFilter.evaluate("(host=*example*)", "host" => "www.sample.com")
+    assert_equal true, LdapFilter.evaluate("(value=a**b)", "value" => "a--b")
+    assert_equal true, LdapFilter.evaluate("(value=a**b)", "value" => "ab")
+  end
+
+  def test_wildcard_escapes_literal_regex_metacharacters
+    assert_equal true, LdapFilter.evaluate("(value=a.b*)", "value" => "a.b-value")
+    assert_equal false, LdapFilter.evaluate("(value=a.b*)", "value" => "axb-value")
+  end
+end
+
 class CliTest < Minitest::Test
   def test_runs_ltsv_input_and_emits_phases
     Tempfile.create(["ldf", ".ltsv"]) do |file|
