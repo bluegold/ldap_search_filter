@@ -10,9 +10,7 @@ class ParserTest < Minitest::Test
 
   def test_parses_wildcard_filter
     parser = LdapFilter::Parser.new
-    parser.parse("(host=www.*)")
-
-    item = parser.result
+    item = parser.parse("(host=www.*)")
     assert_kind_of LdapFilter::Item, item
     assert_equal "=", item.filtertype
     assert_equal "host", item.attr
@@ -22,9 +20,7 @@ class ParserTest < Minitest::Test
 
   def test_parses_presence_filter
     parser = LdapFilter::Parser.new
-    parser.parse("(host=*)")
-
-    item = parser.result
+    item = parser.parse("(host=*)")
     assert_kind_of LdapFilter::Item, item
     assert_equal "*", item.value
     assert_nil item.regex
@@ -114,6 +110,13 @@ class EvaluatorTest < Minitest::Test
     assert_raises(ArgumentError) do
       LdapFilter::Parser.new(keytype: :integer)
     end
+  end
+
+  def test_parser_returns_ast_without_storing_result
+    parser = LdapFilter::Parser.new
+
+    assert_equal false, parser.respond_to?(:result)
+    assert_instance_of LdapFilter::Item, parser.parse("(host=example.com)")
   end
 
   def test_ltsv_uses_string_keys_by_default

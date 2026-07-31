@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
 module LdapFilter
-  class Parser
-  attr_reader :result
-
+class Parser
   HEX_DIGITS = /\A[0-9a-fA-F]{2}\z/
   OPERATORS = %w[~= >= <= =].freeze
   KEY_TYPES = %i[string symbol].freeze
@@ -13,7 +11,6 @@ module LdapFilter
     @keytype = opts.fetch(:keytype, :string)
     raise ArgumentError, "keytype must be :string or :symbol" unless KEY_TYPES.include?(@keytype)
 
-    @result = nil
   end
 
   def parse(filter)
@@ -21,11 +18,11 @@ module LdapFilter
 
     @chars = filter.each_char.to_a
     @position = 0
-    @result = parse_filter
+    result = parse_filter
 
     raise Error, "unexpected trailing input" unless eof?
 
-    @result
+    result
   ensure
     @chars = nil
     @position = nil

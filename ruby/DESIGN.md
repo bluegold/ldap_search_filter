@@ -261,6 +261,8 @@ bundle exec ruby -Itest test/test_ldap_filter.rb
 - `keytype` はフィルタ属性名だけに適用し、検査対象 Hash を変更しない
 - LTSV の汎用 API は String キーを既定値とし、CLI は Symbol 化を明示
 
-### 残課題
+### 対応済み（step5）
 
-- Parser の `@result` をなくし、`parse` の戻り値だけで完結させる
+- Parser は `@result` を保持せず、`parse` の戻り値だけで AST を返す
+
+### 残課題
