@@ -3,7 +3,7 @@
 class LTSV
   class << self
     def parse_line(line, options = {})
-      symbolize_keys = options.fetch(:symbolize_keys, true)
+      symbolize_keys = options.fetch(:symbolize_keys, false)
       line.split("\t").each_with_object({}) do |entry, result|
         key, value = entry.split(":", 2)
         next unless key

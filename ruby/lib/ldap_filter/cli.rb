@@ -100,7 +100,7 @@ class LdapFilterCommand
   def self.each_ltsv_attrs(input_path)
     with_input_io(input_path) do |io|
       io.each_line do |line|
-        yield LTSV.parse_line(line.chomp)
+        yield LTSV.parse_line(line.chomp, symbolize_keys: true)
       end
     end
   end

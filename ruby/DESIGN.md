@@ -144,9 +144,12 @@ regex = Regexp.new("\\A#{pattern}\\z")
         end
 ```
 
-`keytype: :symbol` を指定するとパーサが属性名を `Symbol` に変換する。
-CSV の `header_converters: :symbol` や LTSV の `symbolize_keys: true` と一致させることで、
-キー比較に `String#==` ではなく `Symbol#==` が使われる（高速かつ一意性が保証される）。
+`keytype` はフィルタ側の属性名だけを変換する。既定値は `:string` で、
+`:symbol` を指定すると AST の属性名を `Symbol` にする。Evaluator は検査対象 Hash を変換せず、
+フィルタと Hash のキー形式が一致していることを利用者が保証する。
+
+CSV / LTSV の CLI は既存の Ruby 風出力と一致させるため `:symbol` を明示的に使う。
+一方、`LTSV.parse_line` の既定値は String キーであり、汎用 API として外部入力を勝手に Symbol 化しない。
 
 ```ruby
 evaluator = LdapFilterEvaluator.new("(&(host=www.*)(status=200))", keytype: :symbol)
@@ -252,12 +255,15 @@ bundle exec ruby -Itest test/test_ldap_filter.rb
 - `yaml` の明示的な require
 - Evaluator の不要な `rule` 引数と `.result` フォールバックを削除
 
+### 対応済み（step3）
+
+- `keytype` の既定値を `:string` とし、`:string` / `:symbol` 以外を拒否
+- `keytype` はフィルタ属性名だけに適用し、検査対象 Hash を変更しない
+- LTSV の汎用 API は String キーを既定値とし、CLI は Symbol 化を明示
+
 ### 残課題
 
 - Parser の `@result` をなくし、`parse` の戻り値だけで完結させる
-- 外部入力属性の Symbol 化方針を見直す
 - ライブラリのクラスと定数を `LdapFilter::` 名前空間へ移行する
 
-### 対応方針
-
-まずワイルドカード・エスケープ・UTF-8・入力全体の検証を共通適合性テストとして追加する。その後、Parser の状態をなくし、属性キーと名前空間を見直す。
+次の段階では Parser の状態をなくし、ライブラリのクラスと定数を `LdapFilter::` 名前空間へ移行する。

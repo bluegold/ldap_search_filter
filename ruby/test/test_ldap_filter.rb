@@ -101,6 +101,26 @@ class LdapFilterEvaluatorTest < Minitest::Test
     assert_equal true, evaluator.evaluate(host: "example.com")
   end
 
+  def test_keytype_controls_only_filter_attribute_names
+    attrs = { "host" => "example.com" }
+    filter = LdapFilter.parse("(host=example.com)", keytype: :string)
+
+    assert_equal true, LdapFilter.evaluate(filter, attrs)
+    assert_equal false, LdapFilter.evaluate(filter, host: "example.com")
+    assert_equal({ "host" => "example.com" }, attrs)
+  end
+
+  def test_parser_rejects_unknown_keytype
+    assert_raises(ArgumentError) do
+      LdapFilterParser.new(keytype: :integer)
+    end
+  end
+
+  def test_ltsv_uses_string_keys_by_default
+    assert_equal({ "host" => "example.com" }, LTSV.parse_line("host:example.com"))
+    assert_equal({ host: "example.com" }, LTSV.parse_line("host:example.com", symbolize_keys: true))
+  end
+
   def test_evaluator_rejects_unsupported_filter_objects
     assert_raises(ArgumentError) { LdapFilterEvaluator.new(Object.new) }
   end

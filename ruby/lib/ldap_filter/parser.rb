@@ -5,10 +5,13 @@ class LdapFilterParser
 
   HEX_DIGITS = /\A[0-9a-fA-F]{2}\z/
   OPERATORS = %w[~= >= <= =].freeze
+  KEY_TYPES = %i[string symbol].freeze
 
   def initialize(opts = {})
     @logger = opts[:logger]
-    @symbolkey = (opts[:keytype] == :symbol)
+    @keytype = opts.fetch(:keytype, :string)
+    raise ArgumentError, "keytype must be :string or :symbol" unless KEY_TYPES.include?(@keytype)
+
     @result = nil
   end
 
@@ -74,7 +77,7 @@ class LdapFilterParser
     operator = read_operator
     raw_value = read_value
 
-    attr = attr.to_sym if @symbolkey
+    attr = attr.to_sym if @keytype == :symbol
     value, regex = decode_value(raw_value)
 
     LdapFilterItem.new(
