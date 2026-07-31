@@ -1,5 +1,8 @@
 require_relative "test_helper"
 
+require "open3"
+require "rbconfig"
+
 class ParserTest < Minitest::Test
   def test_public_api_parses_and_evaluates
     rule = LdapFilter.parse("(host=example.com)")
@@ -277,6 +280,94 @@ class CliTest < Minitest::Test
 
       assert_includes stdout.string, '{host: "example.com", status: "200"}'
     end
+  end
+
+  def test_auto_detects_csv_and_ltsv_content
+    Tempfile.create(["ldf", ".log"]) do |file|
+      file.write("host:example.com\tstatus:200\n")
+      file.close
+
+      assert_equal "ltsv", LdapFilter::Cli.detect_format(file.path)
+    end
+
+    Tempfile.create(["ldf", ".log"]) do |file|
+      file.write("host,status\nexample.com,200\n")
+      file.close
+
+      assert_equal "csv", LdapFilter::Cli.detect_format(file.path)
+    end
+  end
+
+  def test_xz_input_is_processed
+    Tempfile.create(["ldf", ".ltsv"]) do |source|
+      source.write("host:example.com\tstatus:200\n")
+      source.close
+
+      Tempfile.create(["ldf", ".ltsv.xz"]) do |compressed|
+        compressed.close
+        assert system("xz", "-c", source.path, out: compressed.path)
+
+        stdout = StringIO.new
+        stderr = StringIO.new
+        LdapFilter::Cli.run(["--format", "ltsv", "(host=example.com)", compressed.path], stdout: stdout, stderr: stderr)
+
+        assert_includes stdout.string, '{host: "example.com", status: "200"}'
+        assert_phase_sequence(stderr.string)
+      end
+    end
+  end
+
+  def test_phase_lines_are_ordered_and_monotonic
+    Tempfile.create(["ldf", ".ltsv"]) do |file|
+      file.write("host:example.com\n")
+      file.close
+
+      stdout = StringIO.new
+      stderr = StringIO.new
+      LdapFilter::Cli.run(["--format", "ltsv", "(host=example.com)", file.path], stdout: stdout, stderr: stderr)
+
+      assert_phase_sequence(stderr.string)
+    end
+  end
+
+  def test_gem_executable_accepts_option_form
+    Tempfile.create(["ldf", ".ltsv"]) do |file|
+      file.write("host:example.com\n")
+      file.close
+
+      stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        "-I", File.expand_path("../lib", __dir__),
+        File.expand_path("../bin/ldap_filter", __dir__),
+        "--format", "ltsv",
+        "--filter", "(host=example.com)",
+        "--input", file.path
+      )
+
+      assert status.success?
+      assert_includes stdout, '{host: "example.com"}'
+      assert_phase_sequence(stderr)
+    end
+  end
+
+  def test_gem_can_be_required_from_a_clean_ruby_process
+    lib_path = File.expand_path("../lib", __dir__)
+    code = 'require "ldap_filter"; abort unless LdapFilter.evaluate("(host=example.com)", "host" => "example.com")'
+    _stdout, stderr, status = Open3.capture3(RbConfig.ruby, "-I", lib_path, "-e", code)
+
+    assert status.success?, stderr
+  end
+
+  private
+
+  def assert_phase_sequence(stderr)
+    lines = stderr.each_line.filter_map do |line|
+      match = /\Aphase=(\w+) .*elapsed_ns=(\d+)/.match(line)
+      [match[1], match[2].to_i] if match
+    end
+
+    assert_equal %w[boot ready done], lines.map(&:first)
+    assert lines.each_cons(2).all? { |(_, before), (_, after)| before <= after }
   end
 end
 
