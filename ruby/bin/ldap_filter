@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+
+require "ldap_filter"
+require "ldap_filter/cli"
+
+LdapFilterCommand.run(ARGV)

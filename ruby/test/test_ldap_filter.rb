@@ -1,6 +1,13 @@
 require_relative "test_helper"
 
 class LdapFilterParserTest < Minitest::Test
+  def test_public_api_parses_and_evaluates
+    rule = LdapFilter.parse("(host=example.com)")
+
+    assert_equal true, LdapFilter.evaluate(rule, "host" => "example.com")
+    assert_equal false, LdapFilter.evaluate(rule, "host" => "example.org")
+  end
+
   def test_parses_wildcard_filter
     parser = LdapFilterParser.new
     parser.parse("(host=www.*)")

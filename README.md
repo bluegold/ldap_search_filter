@@ -18,7 +18,7 @@ Ruby 実装を bundle 経由で使う場合は、`ruby/` ディレクトリで `
 
 ## ディレクトリ構成
 
-- `ruby/` - Ruby 実装のサンプル
+- `ruby/` - `ldap_filter` gem とサンプル CLI
 - `typescript/` - TypeScript 実装
 - `python/` - Python 実装
 - `php/` - PHP 実装
