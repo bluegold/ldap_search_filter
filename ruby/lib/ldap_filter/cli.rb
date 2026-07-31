@@ -4,7 +4,8 @@ require "csv"
 require "open3"
 require "optparse"
 
-class LdapFilterCommand
+module LdapFilter
+  class Cli
   SUPPORTED_FORMATS = %w[auto csv ltsv].freeze
 
   def self.run(argv, stdout: $stdout, stderr: $stderr)
@@ -18,7 +19,7 @@ class LdapFilterCommand
     stderr.puts phase_line("boot", start_ns, monotonic_ns)
 
     format = select_format(options[:format], input_path)
-    evaluator = LdapFilterEvaluator.new(filter, keytype: :symbol)
+    evaluator = Evaluator.new(filter, keytype: :symbol)
 
     stderr.puts phase_line("ready", start_ns, monotonic_ns)
 
@@ -100,7 +101,7 @@ class LdapFilterCommand
   def self.each_ltsv_attrs(input_path)
     with_input_io(input_path) do |io|
       io.each_line do |line|
-        yield LTSV.parse_line(line.chomp, symbolize_keys: true)
+        yield Ltsv.parse_line(line.chomp, symbolize_keys: true)
       end
     end
   end
@@ -135,4 +136,5 @@ class LdapFilterCommand
   def self.monotonic_ns
     Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
   end
+end
 end

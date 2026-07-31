@@ -5,9 +5,9 @@
 ```
 argv
   └─ bootstrap_yjit!           # exec で YJIT 付き Ruby に切り替え（必要な場合）
-       └─ LdapFilterCommand.run
-            ├─ LdapFilterParser    # フィルタ文字列 → AST (LdapFilterNode)
-            ├─ LdapFilterEvaluator # AST を保持
+       └─ LdapFilter::Cli.run
+            ├─ LdapFilter::Parser    # フィルタ文字列 → AST (LdapFilter::Node)
+            ├─ LdapFilter::Evaluator # AST を保持
             └─ 入力ファイル（CSV / LTSV / .xz）
                  │  行ごとに attrs ハッシュへ変換
                  └─ evaluator.evaluate(attrs)
@@ -22,12 +22,12 @@ ldap_filter.rb          # エントリポイント（YJIT ブートストラッ�
 lib/
   ldap_filter.rb        # 各モジュールの require
   ldap_filter/
-    error.rb            # LdapFilterError（StandardError のサブクラス）
-    node.rb             # AST ノード群
-    parser.rb           # フィルタ文字列 → AST
-    evaluator.rb        # AST + attrs → true/false
-    ltsv.rb             # LTSV パーサ
-    cli.rb              # LdapFilterCommand（CLI・ベンチ計測）
+    error.rb            # LdapFilter::Error（StandardError のサブクラス）
+    node.rb             # LdapFilter::Node と AST ノード群
+    parser.rb           # LdapFilter::Parser（フィルタ文字列 → AST）
+    evaluator.rb        # LdapFilter::Evaluator（AST + attrs → true/false）
+    ltsv.rb             # LdapFilter::Ltsv
+    cli.rb              # LdapFilter::Cli（CLI・ベンチ計測）
 test/
   test_helper.rb
   test_ldap_filter.rb   # Minitest によるユニットテスト
@@ -75,26 +75,26 @@ exec(*ruby_args)
 
 ### 3. AST ノード（`node.rb`）
 
-すべてのノードは `LdapFilterNode` のサブクラスで `#evaluate(attrs)` を実装する。
+すべてのノードは `LdapFilter::Node` のサブクラスで `#evaluate(attrs)` を実装する。
 生成後は `freeze` して不変にしている。
 
 | クラス           | 役割                                |
 |:-----------------|:------------------------------------|
-| `LdapFilterItem` | 単一比較（`=` `~=` `>=` `<=`）      |
-| `LdapFilterAnd`  | 論理 AND（`all?` で短絡評価）        |
-| `LdapFilterOr`   | 論理 OR（`any?` で短絡評価）         |
-| `LdapFilterNot`  | 論理 NOT（子は 1 つのみ）            |
+| `LdapFilter::Item` | 単一比較（`=` `~=` `>=` `<=`）      |
+| `LdapFilter::And`  | 論理 AND（`all?` で短絡評価）        |
+| `LdapFilter::Or`   | 論理 OR（`any?` で短絡評価）         |
+| `LdapFilter::Not`  | 論理 NOT（子は 1 つのみ）            |
 
 `all?` / `any?` は Ruby の Enumerable で最初の `false` / `true` が出た時点で打ち切られる。
 
 ```ruby
-# LdapFilterAnd
+# LdapFilter::And
 def evaluate(attrs)
   @children.all? { |child| child.evaluate(attrs) }
 end
 ```
 
-### 4. パーサ（`LdapFilterParser`）
+### 4. パーサ（`LdapFilter::Parser`）
 
 位置カーソルを使う手書きの再帰下降パーサ。フィルタを 1 つずつ読み取り、
 トップレベルで入力を最後まで消費したことを検証する。
@@ -102,18 +102,18 @@ end
 ```
 parse(filter)
   └─ parse_filter（外側の括弧を検証）
-       ├─ "&"       → parse_filter_list → LdapFilterAnd
-       ├─ "|"       → parse_filter_list → LdapFilterOr
-       ├─ "!"       → parse_filter → LdapFilterNot（子は 1 つのみ）
-       └─ それ以外  → parse_item → LdapFilterItem
+       ├─ "&"       → parse_filter_list → LdapFilter::And
+       ├─ "|"       → parse_filter_list → LdapFilter::Or
+       ├─ "!"       → parse_filter → LdapFilter::Not（子は 1 つのみ）
+       └─ それ以外  → parse_item → LdapFilter::Item
 ```
 
 `parse_filter_list` は子フィルタを再帰的に読み取り、`&` / `|` の空リストを拒否する。
 `!` は子を 1 つ読み取った後、直ちに閉じ括弧が続くことを検証する。
-括弧の不整合や余分な入力は `LdapFilterError` を発生させる。
+括弧の不整合や余分な入力は `LdapFilter::Error` を発生させる。
 
 `parse_item` は属性名・演算子・値をカーソルで抽出する。空の assertion value は許可し、
-不正な演算子やエスケープは `LdapFilterError` とする。
+不正な演算子やエスケープは `LdapFilter::Error` とする。
 
 `\xx` はバイト列として蓄積した後、UTF-8 として復元する。無効な UTF-8 は拒否する。
 これにより、例えば `\e3\81\82` は `あ` になる。
@@ -131,15 +131,15 @@ regex = Regexp.new("\\A#{pattern}\\z")
 ワイルドカードとリテラルの区別をデコード後の文字列に依存しないことで、
 エスケープされたアスタリスクを正しく扱う。
 
-### 5. 評価器（`LdapFilterEvaluator`）
+### 5. 評価器（`LdapFilter::Evaluator`）
 
 パーサとノードを橋渡しするファサード。フィルタ文字列または AST ノードを受け取り、
 評価結果は常に `true` / `false` を返す。未対応の入力型は `ArgumentError` とする。
 
 ```ruby
 @rule = case filter
-        when String then LdapFilterParser.new(...).parse(filter)
-        when LdapFilterNode then filter
+        when String then LdapFilter::Parser.new(...).parse(filter)
+        when LdapFilter::Node then filter
         else raise ArgumentError
         end
 ```
@@ -149,10 +149,10 @@ regex = Regexp.new("\\A#{pattern}\\z")
 フィルタと Hash のキー形式が一致していることを利用者が保証する。
 
 CSV / LTSV の CLI は既存の Ruby 風出力と一致させるため `:symbol` を明示的に使う。
-一方、`LTSV.parse_line` の既定値は String キーであり、汎用 API として外部入力を勝手に Symbol 化しない。
+一方、`LdapFilter::Ltsv.parse_line` の既定値は String キーであり、汎用 API として外部入力を勝手に Symbol 化しない。
 
 ```ruby
-evaluator = LdapFilterEvaluator.new("(&(host=www.*)(status=200))", keytype: :symbol)
+evaluator = LdapFilter::Evaluator.new("(&(host=www.*)(status=200))", keytype: :symbol)
 evaluator.evaluate({ host: "www.example.com", status: "200" })  # => true
 ```
 
@@ -171,7 +171,7 @@ when "~="
 `~=` / `>=` / `<=` とワイルドカード比較は、属性値が文字列でない場合に `false` を返す。
 評価ログで使用する YAML は Evaluator が `require "yaml"` して明示的に読み込む。
 
-### 7. LTSV パーサ（`LTSV`）
+### 7. LTSV パーサ（`LdapFilter::Ltsv`）
 
 タブ区切り・コロン分割で各行を `{ key: value }` ハッシュに変換するシンプルな実装。
 
@@ -227,7 +227,7 @@ Ruby のハッシュリテラル形式そのものが出力される：
 | `exec` 後の `ARGV` 変更 | `bootstrap_yjit!` が事前に JIT フラグを削除してから渡す |
 | `unescape` のバッファ確保 | `String.new(capacity: text.bytesize)` でコピーを最小化 |
 | `~=` の外部依存 | `did_you_mean` は Ruby 同梱だが、ロードパスが変わると `require` が失要になる可能性がある |
-| `Regexp` の生成コスト | フィルタのパース時に 1 度だけ生成し、`LdapFilterItem` に保持して使い回す |
+| `Regexp` の生成コスト | フィルタのパース時に 1 度だけ生成し、`LdapFilter::Item` に保持して使い回す |
 
 ## テスト
 
@@ -264,6 +264,3 @@ bundle exec ruby -Itest test/test_ldap_filter.rb
 ### 残課題
 
 - Parser の `@result` をなくし、`parse` の戻り値だけで完結させる
-- ライブラリのクラスと定数を `LdapFilter::` 名前空間へ移行する
-
-次の段階では Parser の状態をなくし、ライブラリのクラスと定数を `LdapFilter::` 名前空間へ移行する。

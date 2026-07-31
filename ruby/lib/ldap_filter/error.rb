@@ -1,1 +1,3 @@
-class LdapFilterError < StandardError; end
+module LdapFilter
+  class Error < StandardError; end
+end

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
-class LdapFilterParser
+module LdapFilter
+  class Parser
   attr_reader :result
 
   HEX_DIGITS = /\A[0-9a-fA-F]{2}\z/
@@ -16,13 +17,13 @@ class LdapFilterParser
   end
 
   def parse(filter)
-    raise LdapFilterError, "empty filter" if filter.empty?
+    raise Error, "empty filter" if filter.empty?
 
     @chars = filter.each_char.to_a
     @position = 0
     @result = parse_filter
 
-    raise LdapFilterError, "unexpected trailing input" unless eof?
+    raise Error, "unexpected trailing input" unless eof?
 
     @result
   ensure
@@ -45,20 +46,20 @@ class LdapFilterParser
     case peek
     when "&"
       advance
-      LdapFilterAnd.new(parse_filter_list)
+      And.new(parse_filter_list)
     when "|"
       advance
-      LdapFilterOr.new(parse_filter_list)
+      Or.new(parse_filter_list)
     when "!"
       advance
-      raise LdapFilterError, "not operator requires one filter" if peek == ")" || eof?
+      raise Error, "not operator requires one filter" if peek == ")" || eof?
 
       child = parse_filter
-      raise LdapFilterError, "not operator has more than one filter" unless peek == ")"
+      raise Error, "not operator has more than one filter" unless peek == ")"
 
-      LdapFilterNot.new(child)
+      Not.new(child)
     when ")", nil
-      raise LdapFilterError, "empty filter"
+      raise Error, "empty filter"
     else
       parse_item
     end
@@ -67,7 +68,7 @@ class LdapFilterParser
   def parse_filter_list
     nodes = []
     nodes << parse_filter until peek == ")"
-    raise LdapFilterError, "operator requires at least one filter" if nodes.empty?
+    raise Error, "operator requires at least one filter" if nodes.empty?
 
     nodes
   end
@@ -80,7 +81,7 @@ class LdapFilterParser
     attr = attr.to_sym if @keytype == :symbol
     value, regex = decode_value(raw_value)
 
-    LdapFilterItem.new(
+    Item.new(
       attr: attr,
       filtertype: operator,
       value: value,
@@ -92,14 +93,14 @@ class LdapFilterParser
     start = @position
     advance while !eof? && !operator_start?(peek) && peek != "(" && peek != ")"
     attr = @chars[start...@position].join
-    raise LdapFilterError, "error in item syntax" if attr.empty? || peek == "("
+    raise Error, "error in item syntax" if attr.empty? || peek == "("
 
     attr
   end
 
   def read_operator
     operator = peek
-    raise LdapFilterError, "error in item syntax" unless operator_start?(operator)
+    raise Error, "error in item syntax" unless operator_start?(operator)
 
     if operator == "="
       advance
@@ -107,11 +108,11 @@ class LdapFilterParser
     end
 
     advance
-    raise LdapFilterError, "error in item syntax" unless peek == "="
+    raise Error, "error in item syntax" unless peek == "="
 
     advance
     candidate = "#{operator}="
-    raise LdapFilterError, "unsupported operator: #{candidate}" unless OPERATORS.include?(candidate)
+    raise Error, "unsupported operator: #{candidate}" unless OPERATORS.include?(candidate)
 
     candidate
   end
@@ -119,8 +120,8 @@ class LdapFilterParser
   def read_value
     start = @position
     advance while !eof? && peek != ")"
-    raise LdapFilterError, "parenthesis mismatch" if eof?
-    raise LdapFilterError, "error in item syntax" if @chars[start...@position].include?("(")
+    raise Error, "parenthesis mismatch" if eof?
+    raise Error, "error in item syntax" if @chars[start...@position].include?("(")
 
     @chars[start...@position].join
   end
@@ -137,7 +138,7 @@ class LdapFilterParser
       case char
       when "\\"
         hex = raw[i + 1, 2]
-        raise LdapFilterError, "invalid escape sequence" unless hex&.match?(HEX_DIGITS)
+        raise Error, "invalid escape sequence" unless hex&.match?(HEX_DIGITS)
 
         byte = hex.to_i(16)
         bytes << byte
@@ -173,7 +174,7 @@ class LdapFilterParser
 
     value
   rescue EncodingError
-    raise LdapFilterError, "invalid UTF-8 escape sequence"
+    raise Error, "invalid UTF-8 escape sequence"
   end
 
   def operator_start?(char)
@@ -181,7 +182,7 @@ class LdapFilterParser
   end
 
   def expect(char)
-    raise LdapFilterError, "parenthesis mismatch" unless peek == char
+    raise Error, "parenthesis mismatch" unless peek == char
 
     advance
   end
@@ -204,5 +205,6 @@ class LdapFilterParser
     return if @logger.nil?
 
     @logger.info(message)
+  end
   end
 end

@@ -2,7 +2,8 @@
 
 require "yaml"
 
-class LdapFilterEvaluator
+module LdapFilter
+  class Evaluator
   attr_reader :rule
 
   def initialize(filter, keytype: :string, logger: nil)
@@ -11,11 +12,11 @@ class LdapFilterEvaluator
     @rule =
       case filter
       when String
-        LdapFilterParser.new(keytype: keytype, logger: logger).parse(filter)
-      when LdapFilterNode
+        Parser.new(keytype: keytype, logger: logger).parse(filter)
+      when Node
         filter
       else
-        raise ArgumentError, "filter must be a String or LdapFilterNode"
+        raise ArgumentError, "filter must be a String or LdapFilter::Node"
       end
   end
 
@@ -34,5 +35,6 @@ class LdapFilterEvaluator
     return if @logger.nil?
 
     @logger.info(message.is_a?(String) ? message : message.to_yaml)
+  end
   end
 end

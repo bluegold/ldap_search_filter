@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
-class LTSV
-  class << self
+module LdapFilter
+  module Ltsv
+    module_function
+
     def parse_line(line, options = {})
       symbolize_keys = options.fetch(:symbolize_keys, false)
       line.split("\t").each_with_object({}) do |entry, result|

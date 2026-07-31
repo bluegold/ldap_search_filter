@@ -2,89 +2,91 @@
 
 require "did_you_mean/levenshtein"
 
-class LdapFilterNode
-  def evaluate(_attrs)
-    raise NotImplementedError, "#{self.class} must implement #evaluate"
-  end
-end
-
-class LdapFilterItem < LdapFilterNode
-  attr_reader :attr, :filtertype, :value, :regex
-
-  def initialize(attr:, filtertype:, value:, regex: nil)
-    @attr = attr
-    @filtertype = filtertype
-    @value = value
-    @regex = regex
-    freeze
-  end
-
-  def evaluate(attrs)
-    actual = attrs[@attr]
-
-    case @filtertype
-    when "="
-      return attrs.key?(@attr) if @value == "*"
-      if @regex
-        return false unless actual.is_a?(String)
-
-        return @regex.match?(actual)
-      end
-
-      @value == actual
-    when "~="
-      return false unless actual.is_a?(String)
-
-      DidYouMean::Levenshtein.distance(@value, actual) < 3
-    when ">="
-      return false unless actual.is_a?(String)
-
-      actual >= @value
-    when "<="
-      return false unless actual.is_a?(String)
-
-      actual <= @value
-    else
-      false
+module LdapFilter
+  class Node
+    def evaluate(_attrs)
+      raise NotImplementedError, "#{self.class} must implement #evaluate"
     end
   end
-end
 
-class LdapFilterAnd < LdapFilterNode
-  attr_reader :children
+  class Item < Node
+    attr_reader :attr, :filtertype, :value, :regex
 
-  def initialize(children)
-    @children = children.freeze
-    freeze
+    def initialize(attr:, filtertype:, value:, regex: nil)
+      @attr = attr
+      @filtertype = filtertype
+      @value = value
+      @regex = regex
+      freeze
+    end
+
+    def evaluate(attrs)
+      actual = attrs[@attr]
+
+      case @filtertype
+      when "="
+        return attrs.key?(@attr) if @value == "*"
+        if @regex
+          return false unless actual.is_a?(String)
+
+          return @regex.match?(actual)
+        end
+
+        @value == actual
+      when "~="
+        return false unless actual.is_a?(String)
+
+        DidYouMean::Levenshtein.distance(@value, actual) < 3
+      when ">="
+        return false unless actual.is_a?(String)
+
+        actual >= @value
+      when "<="
+        return false unless actual.is_a?(String)
+
+        actual <= @value
+      else
+        false
+      end
+    end
   end
 
-  def evaluate(attrs)
-    @children.all? { |child| child.evaluate(attrs) }
-  end
-end
+  class And < Node
+    attr_reader :children
 
-class LdapFilterOr < LdapFilterNode
-  attr_reader :children
+    def initialize(children)
+      @children = children.freeze
+      freeze
+    end
 
-  def initialize(children)
-    @children = children.freeze
-    freeze
-  end
-
-  def evaluate(attrs)
-    @children.any? { |child| child.evaluate(attrs) }
-  end
-end
-
-class LdapFilterNot < LdapFilterNode
-  attr_reader :child
-
-  def initialize(child)
-    @child = child
-    freeze
+    def evaluate(attrs)
+      @children.all? { |child| child.evaluate(attrs) }
+    end
   end
 
-  def evaluate(attrs)
-    !@child.evaluate(attrs)
+  class Or < Node
+    attr_reader :children
+
+    def initialize(children)
+      @children = children.freeze
+      freeze
+    end
+
+    def evaluate(attrs)
+      @children.any? { |child| child.evaluate(attrs) }
+    end
+  end
+
+  class Not < Node
+    attr_reader :child
+
+    def initialize(child)
+      @child = child
+      freeze
+    end
+
+    def evaluate(attrs)
+      !@child.evaluate(attrs)
+    end
   end
 end

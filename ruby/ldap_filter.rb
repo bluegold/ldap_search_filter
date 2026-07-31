@@ -49,4 +49,4 @@ bootstrap_yjit!(ARGV)
 require_relative "lib/ldap_filter"
 require_relative "lib/ldap_filter/cli"
 
-LdapFilterCommand.run(ARGV)
+LdapFilter::Cli.run(ARGV)
