@@ -1,48 +1,38 @@
 # frozen_string_literal: true
 
+require "yaml"
+
 class LdapFilterEvaluator
   attr_reader :rule
 
-  def initialize(filter, opts = {})
-    @logger = opts[:logger]
+  def initialize(filter, keytype: :string, logger: nil)
+    @logger = logger
 
     @rule =
       case filter
       when String
-        parser = LdapFilterParser.new(opts)
-        parser.parse(filter)
-        parser.result
+        LdapFilterParser.new(keytype: keytype, logger: logger).parse(filter)
       when LdapFilterNode
         filter
       else
-        filter&.result
+        raise ArgumentError, "filter must be a String or LdapFilterNode"
       end
   end
 
-  def evaluate(attrs = {}, rule = nil)
-    log(attrs, :yaml)
-    node = rule || @rule
+  def evaluate(attrs = nil, **keyword_attrs)
+    attrs = (attrs || {}).merge(keyword_attrs)
+    log(attrs)
 
-    result = node.evaluate(attrs)
+    result = !!@rule.evaluate(attrs)
     log("result: #{result}")
     result
   end
 
   private
 
-  def log(message, type = :normal, method = nil)
+  def log(message)
     return if @logger.nil?
 
-    ary = []
-    ary << "method:#{method}" unless method.nil?
-    case type
-    when :normal
-      ary << message
-    when :yaml
-      ary << message.to_yaml
-    when :inspect
-      ary << message.inspect
-    end
-    @logger.info ary.join("\n")
+    @logger.info(message.is_a?(String) ? message : message.to_yaml)
   end
 end

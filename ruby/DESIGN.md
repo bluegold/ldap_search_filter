@@ -133,15 +133,15 @@ regex = Regexp.new("\\A#{pattern}\\z")
 
 ### 5. 評価器（`LdapFilterEvaluator`）
 
-パーサとノードを橋渡しするファサード。引数の型に応じてパース済みノードを取り出す：
+パーサとノードを橋渡しするファサード。フィルタ文字列または AST ノードを受け取り、
+評価結果は常に `true` / `false` を返す。未対応の入力型は `ArgumentError` とする。
 
 ```ruby
-@rule =
-  case filter
-  when String      then parser.parse(filter); parser.result
-  when LdapFilterNode then filter
-  else                 filter&.result
-  end
+@rule = case filter
+        when String then LdapFilterParser.new(...).parse(filter)
+        when LdapFilterNode then filter
+        else raise ArgumentError
+        end
 ```
 
 `keytype: :symbol` を指定するとパーサが属性名を `Symbol` に変換する。
@@ -160,8 +160,13 @@ evaluator.evaluate({ host: "www.example.com", status: "200" })  # => true
 
 ```ruby
 when "~="
-  actual && DidYouMean::Levenshtein.distance(@value, actual) < 3
+  return false unless actual.is_a?(String)
+
+  DidYouMean::Levenshtein.distance(@value, actual) < 3
 ```
+
+`~=` / `>=` / `<=` とワイルドカード比較は、属性値が文字列でない場合に `false` を返す。
+評価ログで使用する YAML は Evaluator が `require "yaml"` して明示的に読み込む。
 
 ### 7. LTSV パーサ（`LTSV`）
 
@@ -232,53 +237,26 @@ bundle exec ruby -Itest test/test_ldap_filter.rb
 
 ## レビュー結果と対応状況
 
-step1 では、パーサの仕様適合性に関する次の項目を対応済みとした。
+### 対応済み（step1）
 
 - ワイルドカードの全体一致
 - エスケープされた `*` とワイルドカードの区別
 - UTF-8 エスケープの復元と不正値の拒否
 - フィルタ文字列全体の消費検証
 
-残っている項目は、Evaluator の API 整理、Symbol 化方針、ログ依存、名前空間化である。
+### 対応済み（step2）
 
-### 優先度高
+- Evaluator の入力を String または AST に限定
+- 評価結果を常に Boolean 化
+- `~=` / `>=` / `<=` / ワイルドカード比較で非文字列値を安全に拒否
+- `yaml` の明示的な require
+- Evaluator の不要な `rule` 引数と `.result` フォールバックを削除
 
-- **ワイルドカード正規表現が全体一致になっていない**
-  - `Regexp.new(Regexp.escape(value).gsub("\\*", ".*"))` は `\\A` / `\\z` を持たないため、`(host=www.*)` が `xwww.example.com` にも一致する。
-  - LDAP の substring filter は値全体に対する一致として扱い、正規表現を使う場合は `\\A` と `\\z` で囲む。
-- **エスケープされた `*` とワイルドカードを区別できていない**
-  - `\\2a` を先に `*` へデコードしてからワイルドカード化しているため、リテラルのアスタリスクがワイルドカードになる。
-  - パース時にリテラル部分とワイルドカードを分離した構造を保持する必要がある。
-- **フィルタ文字列全体の消費を検証していない**
-  - 外側の括弧を剥がした後、最初のノードだけを解析するため、余分なフィルタや末尾文字列を拒否できない。
-  - 最上位で、1 つのフィルタを解析した後に入力が残っていないことを検証する。
-- **UTF-8 のエスケープ復元がバイト単位になっている**
-  - `\\xx` を `Integer#chr` で個別の文字へ変換している。
-  - RFC 4515 のエスケープは UTF-8 バイト列を表すため、連続したバイト列を UTF-8 として復元する必要がある。
+### 残課題
 
-### 優先度中
-
-- **Parser が `@result` を持つ状態付き API になっている**
-  - `parse` の戻り値とは別に `parser.result` を参照する設計になっている。
-  - `parse` が AST を直接返す、状態を持たない API の方が Ruby らしく、再利用やテストもしやすい。
-- **属性名を外部入力から Symbol 化している**
-  - CSV ヘッダや LTSV キーを `to_sym` している。
-  - 外部入力は文字列キーのまま扱う方が安全で、Symbol 化は固定された内部キーに限定する。
-- **`evaluate` が常に Boolean を返さない**
-  - 属性が存在しない場合、`~=` / `>=` / `<=` が `nil` を返す。
-  - API の契約を明確にするため、`false` を返すようにする。
-- **ログ経路で `to_yaml` を使うが `yaml` を明示的に require していない**
-  - logger を指定した場合だけ実行時エラーになる可能性がある。
-  - `require "yaml"` を追加するか、`inspect` など標準的な形式へ統一する。
-
-### 優先度低
-
-- **ライブラリのクラスと定数がトップレベルにある**
-  - `LdapFilterNode` や `LTSV` などが他ライブラリと衝突し得る。
-  - ライブラリとして公開する場合は `LdapFilter::` 名前空間へまとめる。
-- **空の入力や不正な構文のエラー契約が一定していない**
-  - 空フィルタなどで `LdapFilterError` 以外の例外になる可能性がある。
-  - 構文エラーは専用例外へ統一する。
+- Parser の `@result` をなくし、`parse` の戻り値だけで完結させる
+- 外部入力属性の Symbol 化方針を見直す
+- ライブラリのクラスと定数を `LdapFilter::` 名前空間へ移行する
 
 ### 対応方針
 

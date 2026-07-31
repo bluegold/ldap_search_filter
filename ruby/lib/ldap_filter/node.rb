@@ -25,15 +25,25 @@ class LdapFilterItem < LdapFilterNode
     case @filtertype
     when "="
       return attrs.key?(@attr) if @value == "*"
-      return !!@regex&.match?(actual) if @regex && actual
+      if @regex
+        return false unless actual.is_a?(String)
+
+        return @regex.match?(actual)
+      end
 
       @value == actual
     when "~="
-      actual && DidYouMean::Levenshtein.distance(@value, actual) < 3
+      return false unless actual.is_a?(String)
+
+      DidYouMean::Levenshtein.distance(@value, actual) < 3
     when ">="
-      actual && actual >= @value
+      return false unless actual.is_a?(String)
+
+      actual >= @value
     when "<="
-      actual && actual <= @value
+      return false unless actual.is_a?(String)
+
+      actual <= @value
     else
       false
     end

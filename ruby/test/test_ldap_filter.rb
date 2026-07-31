@@ -88,6 +88,35 @@ class LdapFilterEvaluatorTest < Minitest::Test
     assert_equal true, evaluator.evaluate(host: "example")
     assert_equal false, evaluator.evaluate({})
   end
+
+  def test_evaluation_always_returns_boolean_for_missing_or_invalid_values
+    assert_equal false, LdapFilterEvaluator.new("(name~=john)").evaluate({})
+    assert_equal false, LdapFilterEvaluator.new("(age>=18)").evaluate("age" => 20)
+    assert_equal false, LdapFilterEvaluator.new("(name=jo*)").evaluate("name" => 123)
+  end
+
+  def test_evaluator_accepts_keyword_attributes
+    evaluator = LdapFilterEvaluator.new("(host=example.com)", keytype: :symbol)
+
+    assert_equal true, evaluator.evaluate(host: "example.com")
+  end
+
+  def test_evaluator_rejects_unsupported_filter_objects
+    assert_raises(ArgumentError) { LdapFilterEvaluator.new(Object.new) }
+  end
+
+  def test_logger_receives_evaluation_messages
+    messages = []
+    logger = Object.new
+    logger.define_singleton_method(:info) { |message| messages << message }
+
+    rule = LdapFilterParser.new.parse("(host=example.com)")
+    LdapFilterEvaluator.new(rule, logger: logger).evaluate("host" => "example.com")
+
+    assert_equal 2, messages.length
+    assert_includes messages.first, "host"
+    assert_equal "result: true", messages.last
+  end
 end
 
 class LdapFilterCommandTest < Minitest::Test
