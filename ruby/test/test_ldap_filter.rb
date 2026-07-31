@@ -29,6 +29,45 @@ class LdapFilterParserTest < Minitest::Test
     assert_equal "*", item.value
     assert_nil item.regex
   end
+
+  def test_wildcard_matches_the_entire_value
+    evaluator = LdapFilterEvaluator.new("(host=www.*)")
+
+    assert_equal true, evaluator.evaluate("host" => "www.example.com")
+    assert_equal false, evaluator.evaluate("host" => "xwww.example.com")
+  end
+
+  def test_escaped_star_is_a_literal
+    evaluator = LdapFilterEvaluator.new("(host=foo\\2abar)")
+
+    assert_equal true, evaluator.evaluate("host" => "foo*bar")
+    assert_equal false, evaluator.evaluate("host" => "foo123bar")
+  end
+
+  def test_decodes_utf8_escaped_bytes
+    evaluator = LdapFilterEvaluator.new("(name=\\e3\\81\\82)")
+
+    assert_equal true, evaluator.evaluate("name" => "あ")
+  end
+
+  def test_rejects_invalid_utf8_escape
+    assert_raises(LdapFilterError) { LdapFilterParser.new.parse("(name=\\ff)") }
+  end
+
+  def test_rejects_trailing_input_and_empty_filter
+    assert_raises(LdapFilterError) { LdapFilterParser.new.parse("(host=ok)(other=value)") }
+    assert_raises(LdapFilterError) { LdapFilterParser.new.parse("") }
+  end
+
+  def test_allows_empty_assertion_value
+    item = LdapFilterParser.new.parse("(host=)")
+
+    assert_equal "", item.value
+  end
+
+  def test_not_requires_exactly_one_filter
+    assert_raises(LdapFilterError) { LdapFilterParser.new.parse("(!(host=a)(host=b))") }
+  end
 end
 
 class LdapFilterEvaluatorTest < Minitest::Test

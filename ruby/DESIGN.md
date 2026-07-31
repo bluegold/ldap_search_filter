@@ -96,45 +96,40 @@ end
 
 ### 4. パーサ（`LdapFilterParser`）
 
-再帰下降による手書きパーサ。正規表現は属性値の分解（`ITEM_PARSER`）のみに使用し、
-ネスト構造の解析は `subfilters` が括弧の深さをカウントして行う。
+位置カーソルを使う手書きの再帰下降パーサ。フィルタを 1 つずつ読み取り、
+トップレベルで入力を最後まで消費したことを検証する。
 
 ```
 parse(filter)
-  └─ parse_node(str)
-       ├─ "("       → subfilters → parse_node（外側の括弧を剥がして再帰）
-       ├─ "&"       → subfilters → LdapFilterAnd（各子を再帰）
-       ├─ "|"       → subfilters → LdapFilterOr（各子を再帰）
-       ├─ "!"       → subfilters → LdapFilterNot（子は 1 つのみ）
+  └─ parse_filter（外側の括弧を検証）
+       ├─ "&"       → parse_filter_list → LdapFilterAnd
+       ├─ "|"       → parse_filter_list → LdapFilterOr
+       ├─ "!"       → parse_filter → LdapFilterNot（子は 1 つのみ）
        └─ それ以外  → parse_item → LdapFilterItem
 ```
 
-`subfilters` は `(` で `depth` をインクリメント、`)` でデクリメントし、
-`depth` がゼロに戻るたびに 1 ノード分の部分文字列を `ary` に追加する。
-括弧の対応が取れない場合は `LdapFilterError` を発生させる。
+`parse_filter_list` は子フィルタを再帰的に読み取り、`&` / `|` の空リストを拒否する。
+`!` は子を 1 つ読み取った後、直ちに閉じ括弧が続くことを検証する。
+括弧の不整合や余分な入力は `LdapFilterError` を発生させる。
 
-`parse_item` は `ITEM_PARSER = /\A([^~=><]+)(~=|>=|<=|=)(.+)\z/` で
-属性名・演算子・値を抽出する。値は `unescape` で `\xx`（16 進 2 桁）エスケープを展開する。
+`parse_item` は属性名・演算子・値をカーソルで抽出する。空の assertion value は許可し、
+不正な演算子やエスケープは `LdapFilterError` とする。
 
-```ruby
-def unescape(text)
-  return text if text == "*"
-  # ...手書きループで \xx を展開
-  hex = text[i + 1, 2]
-  value << hex.to_i(16).chr if hex.match?(/\A[0-9a-fA-F]{2}\z/)
-end
-```
+`\xx` はバイト列として蓄積した後、UTF-8 として復元する。無効な UTF-8 は拒否する。
+これにより、例えば `\e3\81\82` は `あ` になる。
 
-ワイルドカードを含む値（`*` 単体は除く）は `Regexp` に変換して `LdapFilterItem` に持たせる：
+ワイルドカードを含む値（`*` 単体は presence filter）は、リテラル部分とワイルドカードを
+分離して `Regexp` に変換する。正規表現は `\A` / `\z` で全体一致にする。
+エスケープされた `\2a` はリテラルの `*` として扱う。
 
 ```ruby
-regex = if value != "*" && value.include?("*")
-  Regexp.new(Regexp.escape(value).gsub("\\*", ".*"))
-end
+pattern = segments.map { |part| Regexp.escape(part) }.join(".*")
+regex = Regexp.new("\\A#{pattern}\\z")
 ```
 
-`Regexp.escape` で通常文字をエスケープし、`\*` に変換された `*` だけを `.*` に戻す。
-ワイルドカードを `Regexp` に変換して委譲することで実装をシンプルに保っている。
+通常文字を `Regexp.escape` し、ワイルドカードだけを `.*` として連結する。
+ワイルドカードとリテラルの区別をデコード後の文字列に依存しないことで、
+エスケープされたアスタリスクを正しく扱う。
 
 ### 5. 評価器（`LdapFilterEvaluator`）
 
@@ -235,7 +230,16 @@ bundle exec ruby -Itest test/test_ldap_filter.rb
 テストは Minitest。Parser・Evaluator・Command（CSV / LTSV）の 3 クラスで構成される。
 ファイル入出力のテストは `Tempfile` と `StringIO` を組み合わせて行う。
 
-## レビュー結果
+## レビュー結果と対応状況
+
+step1 では、パーサの仕様適合性に関する次の項目を対応済みとした。
+
+- ワイルドカードの全体一致
+- エスケープされた `*` とワイルドカードの区別
+- UTF-8 エスケープの復元と不正値の拒否
+- フィルタ文字列全体の消費検証
+
+残っている項目は、Evaluator の API 整理、Symbol 化方針、ログ依存、名前空間化である。
 
 ### 優先度高
 
