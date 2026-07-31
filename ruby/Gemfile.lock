@@ -19,11 +19,11 @@ DEPENDENCIES
   minitest
 
 CHECKSUMS
-  csv (3.3.5)
-  did_you_mean (2.0.0)
-  drb (2.2.3)
-  minitest (6.0.2)
-  prism (1.9.0)
+  csv (3.3.5) sha256=6e5134ac3383ef728b7f02725d9872934f523cb40b961479f69cf3afa6c8e73f
+  did_you_mean (2.0.0) sha256=914a5803e310063240799d547c10693a97eef906bbcbdbe23b46d60a96de765a
+  drb (2.2.3) sha256=0b00d6fdb50995fe4a45dea13663493c841112e4068656854646f418fda13373
+  minitest (6.0.2) sha256=db6e57956f6ecc6134683b4c87467d6dd792323c7f0eea7b93f66bd284adbc3d
+  prism (1.9.0) sha256=7b530c6a9f92c24300014919c9dcbc055bf4cdf51ec30aed099b06cd6674ef85
 
 BUNDLED WITH
   4.0.7
