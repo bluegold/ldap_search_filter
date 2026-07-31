@@ -22,6 +22,8 @@ jobs:
   test:
     name: Test (Ruby ${{ matrix.ruby-version }})
     runs-on: ubuntu-latest
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/ruby/Gemfile
     strategy:
       fail-fast: false
       matrix:
@@ -46,6 +48,8 @@ jobs:
     name: Build gem
     needs: test
     runs-on: ubuntu-latest
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/ruby/Gemfile
     defaults:
       run:
         working-directory: ruby
