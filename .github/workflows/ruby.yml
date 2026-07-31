@@ -1,0 +1,122 @@
+name: Ruby gem
+
+on:
+  pull_request:
+    paths:
+      - "ruby/**"
+      - ".github/workflows/ruby.yml"
+  push:
+    branches:
+      - master
+    tags:
+      - "ruby-v*"
+    paths:
+      - "ruby/**"
+      - ".github/workflows/ruby.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test (Ruby ${{ matrix.ruby-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby-version: ["3.4", "4.0"]
+    defaults:
+      run:
+        working-directory: ruby
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
+          bundler-cache: true
+
+      - name: Run tests
+        run: bundle exec ruby -Itest test/test_ldap_filter.rb
+
+  build:
+    name: Build gem
+    needs: test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ruby
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "4.0"
+          bundler-cache: true
+
+      - name: Build gem
+        run: |
+          mkdir -p pkg
+          version="$(ruby -Ilib -e 'require "ldap_filter/version"; print LdapFilter::VERSION')"
+          gem build ldap_filter.gemspec --output "pkg/ldap_filter-${version}.gem"
+
+      - name: Upload gem artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ruby-gem
+          path: ruby/pkg/*.gem
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Release gem
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/ruby-v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    environment: rubygems
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "4.0"
+
+      - name: Download gem artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ruby-gem
+          path: ruby/pkg
+
+      - name: Verify tag version
+        working-directory: ruby
+        run: |
+          tag_version="${GITHUB_REF_NAME#ruby-v}"
+          gem_version="$(ruby -e 'spec = Gem::Specification.load("ldap_filter.gemspec"); print spec.version')"
+          test "$tag_version" = "$gem_version"
+
+      - name: Publish gem to RubyGems
+        working-directory: ruby
+        env:
+          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
+        run: gem push pkg/*.gem
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" ruby/pkg/*.gem --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" ruby/pkg/*.gem \
+              --title "$GITHUB_REF_NAME" \
+              --generate-notes
+          fi

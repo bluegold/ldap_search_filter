@@ -8,7 +8,7 @@ Gem::Specification.new do |spec|
   spec.summary = "Parse and evaluate LDAP Search Filters"
   spec.description = "Parse RFC 4515 LDAP Search Filters and evaluate them against attribute maps."
   spec.authors = ["LDF contributors"]
-  spec.required_ruby_version = ">= 3.3"
+  spec.required_ruby_version = ">= 3.4"
 
   spec.files = Dir.chdir(__dir__) do
     Dir["lib/**/*", "bin/*", "README.md", "LICENSE*"].select { |path| File.file?(path) }

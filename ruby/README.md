@@ -63,3 +63,11 @@ bundle install
 bundle exec ruby -Itest test/test_ldap_filter.rb
 gem build ldap_filter.gemspec
 ```
+
+## CI とリリース
+
+GitHub Actions は Ruby 3.4 と Ruby 4.0 でテストし、gem の build まで行います。
+
+`ruby-v0.1.0` のようなタグを push すると、テスト成功後に gem を RubyGems へ公開し、
+同じタグの GitHub Release を作成します。リリースには GitHub Actions の `rubygems` environment と、
+RubyGems の API key を `RUBYGEMS_API_KEY` secret として登録してください。
