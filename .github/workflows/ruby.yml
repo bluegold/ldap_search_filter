@@ -33,7 +33,7 @@ jobs:
         working-directory: ruby
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
@@ -55,7 +55,7 @@ jobs:
         working-directory: ruby
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
@@ -70,7 +70,7 @@ jobs:
           gem build ldap_filter.gemspec --output "pkg/ldap_filter-${version}.gem"
 
       - name: Upload gem artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ruby-gem
           path: ruby/pkg/*.gem
@@ -87,7 +87,7 @@ jobs:
     environment: rubygems
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
@@ -95,7 +95,7 @@ jobs:
           ruby-version: "4.0"
 
       - name: Download gem artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: ruby-gem
           path: ruby/pkg
