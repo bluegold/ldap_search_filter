@@ -249,4 +249,58 @@ class CliTest < Minitest::Test
       assert_includes stderr.string, "phase=done"
     end
   end
+
+  def test_csv_handles_quoted_commas_quotes_and_newlines
+    Tempfile.create(["ldf", ".csv"]) do |file|
+      file.write("host,message\n")
+      file.write("example.com,\"hello, \"\"world\"\"\nline\"\n")
+      file.close
+
+      stdout = StringIO.new
+      stderr = StringIO.new
+
+      LdapFilter::Cli.run(["--format", "csv", "(host=example.com)", file.path], stdout: stdout, stderr: stderr)
+
+      assert_includes stdout.string, %q{message: "hello, \"world\"\nline"}
+    end
+  end
+
+  def test_csv_removes_utf8_bom_from_the_first_header
+    Tempfile.create(["ldf", ".csv"]) do |file|
+      file.write("\uFEFFhost,status\nexample.com,200\n")
+      file.close
+
+      stdout = StringIO.new
+      stderr = StringIO.new
+
+      LdapFilter::Cli.run(["--format", "csv", "(host=example.com)", file.path], stdout: stdout, stderr: stderr)
+
+      assert_includes stdout.string, '{host: "example.com", status: "200"}'
+    end
+  end
+end
+
+class LtsvTest < Minitest::Test
+  def test_parses_escaped_values_and_empty_values
+    attrs = LdapFilter::Ltsv.parse_line(
+      "path:line\\t1\tmessage:hello\\nworld\tquoted:backslash\\\\end\tempty:"
+    )
+
+    assert_equal "line\t1", attrs["path"]
+    assert_equal "hello\nworld", attrs["message"]
+    assert_equal "backslash\\end", attrs["quoted"]
+    assert_nil attrs["empty"]
+  end
+
+  def test_preserves_colons_and_ignores_malformed_fields
+    attrs = LdapFilter::Ltsv.parse_line("url:https://example.com/a:b\tbroken\t:value")
+
+    assert_equal "https://example.com/a:b", attrs["url"]
+    refute_includes attrs, "broken"
+    refute_includes attrs, ""
+  end
+
+  def test_parse_removes_one_record_separator
+    assert_equal({ "host" => "example.com" }, LdapFilter::Ltsv.parse("host:example.com\n"))
+  end
 end

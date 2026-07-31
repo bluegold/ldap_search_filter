@@ -91,7 +91,8 @@ module LdapFilter
 
   def self.each_csv_attrs(input_path)
     with_input_io(input_path) do |io|
-      csv = CSV.new(io, headers: true, header_converters: :symbol)
+      header_converter = ->(header) { header.delete_prefix("\uFEFF").to_sym }
+      csv = CSV.new(io, headers: true, header_converters: header_converter)
       csv.each do |row|
         yield row.to_h
       end

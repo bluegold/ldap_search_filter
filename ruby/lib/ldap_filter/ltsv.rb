@@ -8,7 +8,7 @@ module LdapFilter
       symbolize_keys = options.fetch(:symbolize_keys, false)
       line.split("\t").each_with_object({}) do |entry, result|
         key, value = entry.split(":", 2)
-        next unless key
+        next if key.nil? || key.empty? || value.nil?
 
         key = key.to_sym if symbolize_keys
         result[key] = normalize_value(unescape(value))
