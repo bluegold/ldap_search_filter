@@ -2,13 +2,16 @@ set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
 default: test
 
-test: test-ruby test-typescript test-python test-php test-cpp test-csharp test-csharp-aot test-zig test-rust test-go test-go-switch test-sbcl test-ghc test-tools
+test: test-ruby test-typescript test-typescript-effect test-python test-php test-cpp test-csharp test-csharp-aot test-zig test-rust test-go test-go-switch test-sbcl test-ghc test-tools
 
 test-ruby:
 	cd ruby && bundle exec ruby -Itest test/test_ldap_filter.rb
 
 test-typescript:
 	cd typescript && npm test
+
+test-typescript-effect:
+	cd typescript-effect && npm test
 
 test-python:
 	cd python && python3 -m unittest discover -s test -p 'test_*.py'
