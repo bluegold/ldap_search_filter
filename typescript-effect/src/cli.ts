@@ -14,7 +14,7 @@ const write = (stream: Writable, text: string): Effect.Effect<void, OutputError>
   const succeedIfReady = () => { if (!completed && callbackDone && drainDone) { completed = true; cleanup(); resume(Effect.void); } };
   const onDrain = () => { drainDone = true; succeedIfReady(); };
   const onError = (error: unknown) => { if (completed) return; completed = true; cleanup(); const value = error as { message?: string; code?: string }; resume(Effect.fail(new OutputError(value.message ?? String(error), value.code))); };
-  const onWrite = (error?: Error | null) => { if (error) { onError(error); return; } callbackDone = true; succeedIfReady(); };
+  const onWrite = (error?: Error | null) => { if (error) return; callbackDone = true; succeedIfReady(); };
   stream.once("error", onError);
   try { drainDone = stream.write(text, onWrite); if (!drainDone) stream.once("drain", onDrain); }
   catch (error) { onError(error); }

@@ -5,6 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { Effect, Layer } = require("effect");
 const { EventEmitter } = require("node:events");
+const { Writable } = require("node:stream");
 const { CliConsole, createCliConsole, program } = require("../dist/cli.js");
 
 test("program processes LTSV inside an Effect", async () => {
@@ -59,4 +60,21 @@ test("output waits for write callback and drain", async () => {
   stdout.complete();
   await pending;
   assert.equal(completed, true);
+});
+
+test("output converts write errors from the error event to OutputError", async () => {
+  const failing = new Writable({
+    write(_chunk, _encoding, callback) {
+      callback(new Error("write failed"));
+    }
+  });
+  const console = createCliConsole(failing, new EventEmitter());
+  const result = await Effect.runPromise(Effect.match(console.stdout("record\n"), {
+    onFailure: (error) => ({ ok: false, error }),
+    onSuccess: () => ({ ok: true })
+  }));
+  assert.equal(result.ok, false);
+  assert.equal(result.error._tag, "OutputError");
+  assert.equal(result.error.message, "write failed");
+  failing.destroy();
 });
