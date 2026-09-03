@@ -68,7 +68,7 @@ interface CliConsole {
 
 実行時は Node.js の標準ストリームを使い、テスト時は `Layer.succeed` でメモリ上の実装に差し替えます。これにより CLI のロジックがグローバルな標準出力へ直接依存しません。
 
-書き込みが `false` を返した場合は `drain` イベントを待ち、出力側の backpressure を維持します。
+書き込み callback で chunk の処理結果を確認します。戻り値が `false` の場合は callback に加えて `drain` イベントも待ち、出力側の backpressure を維持します。書き込み中のエラーは `OutputError` に変換されます。
 
 ## フェーズ計測
 

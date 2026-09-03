@@ -4,7 +4,8 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { Effect, Layer } = require("effect");
-const { CliConsole, program } = require("../dist/cli.js");
+const { EventEmitter } = require("node:events");
+const { CliConsole, createCliConsole, program } = require("../dist/cli.js");
 
 test("program processes LTSV inside an Effect", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ldf-effect-"));
@@ -40,4 +41,22 @@ test("program processes CSV quoted newlines as one record", async () => {
   assert.equal(code, 0);
   assert.match(stdout.join(""), /hello.*world/s);
   assert.doesNotMatch(stdout.join(""), /example\.org/);
+});
+
+test("output waits for write callback and drain", async () => {
+  class FakeWritable extends EventEmitter {
+    write(_text, callback) { this.callback = callback; return false; }
+    complete() { this.callback(); this.emit("drain"); }
+  }
+  const stdout = new FakeWritable();
+  const console = createCliConsole(stdout, new FakeWritable());
+  const pending = Effect.runPromise(console.stdout("record\n"));
+  await new Promise((resolve) => setImmediate(resolve));
+  let completed = false;
+  pending.then(() => { completed = true; });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(completed, false);
+  stdout.complete();
+  await pending;
+  assert.equal(completed, true);
 });

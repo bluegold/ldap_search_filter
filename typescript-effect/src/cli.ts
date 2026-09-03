@@ -7,18 +7,21 @@ import { detectFormat, forEachInputRecord, parseCsvHeader, parseCsvLine, parseLt
 type Options = { filter?: string; input?: string; format: FormatKind; help: boolean };
 export interface CliConsole { readonly stdout: (text: string) => Effect.Effect<void, OutputError>; readonly stderr: (text: string) => Effect.Effect<void, OutputError>; }
 export const CliConsole = Context.GenericTag<CliConsole>("ldf/CliConsole");
-const write = (stream: NodeJS.WriteStream, text: string): Effect.Effect<void, OutputError> => Effect.async<void, OutputError>((resume) => {
-  let completed = false;
+type Writable = Pick<NodeJS.WriteStream, "write" | "once" | "off">;
+const write = (stream: Writable, text: string): Effect.Effect<void, OutputError> => Effect.async<void, OutputError>((resume) => {
+  let completed = false; let callbackDone = false; let drainDone = true;
   const cleanup = () => { stream.off("drain", onDrain); stream.off("error", onError); };
-  const succeed = () => { if (completed) return; completed = true; cleanup(); resume(Effect.void); };
-  const onDrain = () => succeed();
-  const onError = (error: unknown) => { if (completed) return; completed = true; cleanup(); resume(Effect.fail(new OutputError(error instanceof Error ? error.message : String(error)))); };
+  const succeedIfReady = () => { if (!completed && callbackDone && drainDone) { completed = true; cleanup(); resume(Effect.void); } };
+  const onDrain = () => { drainDone = true; succeedIfReady(); };
+  const onError = (error: unknown) => { if (completed) return; completed = true; cleanup(); const value = error as { message?: string; code?: string }; resume(Effect.fail(new OutputError(value.message ?? String(error), value.code))); };
+  const onWrite = (error?: Error | null) => { if (error) { onError(error); return; } callbackDone = true; succeedIfReady(); };
   stream.once("error", onError);
-  try { if (stream.write(text)) succeed(); else stream.once("drain", onDrain); }
+  try { drainDone = stream.write(text, onWrite); if (!drainDone) stream.once("drain", onDrain); }
   catch (error) { onError(error); }
   return Effect.sync(cleanup);
 });
-export const liveConsole = Layer.succeed(CliConsole, { stdout: (text) => write(process.stdout, text), stderr: (text) => write(process.stderr, text) });
+export const createCliConsole = (stdout: Writable, stderr: Writable): CliConsole => ({ stdout: (text) => write(stdout, text), stderr: (text) => write(stderr, text) });
+export const liveConsole = Layer.succeed(CliConsole, createCliConsole(process.stdout, process.stderr));
 const monotonicNs = () => Effect.sync(() => process.hrtime.bigint());
 const phaseLine = (phase: string, start: bigint) => Effect.sync(() => { const elapsed = process.hrtime.bigint() - start; return `phase=${phase} t=${elapsed} elapsed_ns=${elapsed}\n`; });
 
