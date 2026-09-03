@@ -15,6 +15,8 @@
 /rust/target/
 /go/bin/
 /go-switch/bin/
+/typescript-effect/node_modules/
+/typescript-effect/dist/
 /sbcl/ldap_filter
 /ghc/bin/
 /.envrc
