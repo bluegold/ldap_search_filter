@@ -49,9 +49,9 @@ type FilterNode =
 
 ### 入力処理
 
-`forEachInputLine` は `Effect<void, Error>` を返します。通常ファイルは Node.js の読み取りストリーム、`.xz` ファイルは `xz -dc` の標準出力を入力に使用します。
+`forEachInputRecord` は `Effect<void, Error>` を返します。通常ファイルは Node.js の読み取りストリーム、`.xz` ファイルは `xz -dc` の標準出力を入力に使用します。LTSV は物理行、CSV は引用符の状態を追跡した論理レコード単位で処理します。
 
-入力ストリーム、readline、`xz` 子プロセスのエラーを Effect の失敗へ変換し、キャンセル時にはすべてのリソースを解放します。行ごとの処理も Effect として順序どおりに実行します。
+入力ストリーム、readline、`xz` 子プロセスのエラーを Effect の失敗へ変換し、キャンセル時にはすべてのリソースを解放します。Node.js の async iterator と逐次 `await` により、各レコードの処理完了まで次のレコードを読み込まない構成です。
 
 ### 標準入出力
 

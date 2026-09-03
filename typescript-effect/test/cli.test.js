@@ -26,3 +26,18 @@ test("program processes LTSV inside an Effect", async () => {
   assert.match(stdout.join(""), /example\.com/);
   assert.doesNotMatch(stdout.join(""), /example\.org/);
 });
+
+test("program processes CSV quoted newlines as one record", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ldf-effect-"));
+  const input = path.join(dir, "sample.csv");
+  fs.writeFileSync(input, "host,message\nexample.com,\"hello\nworld\"\nexample.org,other\n");
+  const stdout = [];
+  const testConsole = {
+    stdout: (text) => Effect.sync(() => stdout.push(String(text))),
+    stderr: () => Effect.void
+  };
+  const code = await Effect.runPromise(Effect.provide(program(["--format", "csv", "(host=example.com)", input]), Layer.succeed(CliConsole, testConsole)));
+  assert.equal(code, 0);
+  assert.match(stdout.join(""), /hello.*world/s);
+  assert.doesNotMatch(stdout.join(""), /example\.org/);
+});

@@ -1,6 +1,6 @@
 import { Context, Effect, Layer } from "effect";
 import { evaluateFilter, inspectAttrs, parseFilter, type FilterNode } from "./filter";
-import { detectFormat, forEachInputLine, parseCsvHeader, parseCsvLine, parseLtsvLine, rowToAttrs, type FormatKind } from "./io";
+import { detectFormat, forEachInputRecord, parseCsvHeader, parseCsvLine, parseLtsvLine, rowToAttrs, type FormatKind } from "./io";
 
 type Options = { filter?: string; input?: string; format: FormatKind; help: boolean };
 export interface CliConsole { readonly stdout: (text: string) => Effect.Effect<void, Error>; readonly stderr: (text: string) => Effect.Effect<void, Error>; }
@@ -27,7 +27,7 @@ const parseArgs = (argv: string[]): Effect.Effect<Options, Error> => Effect.try(
 
 const processInput = (path: string, format: Exclude<FormatKind, "auto">, ast: FilterNode, output: CliConsole): Effect.Effect<void, Error> => {
   let headers: string[] | null = null;
-  return forEachInputLine(path, (line) => Effect.gen(function* () {
+  return forEachInputRecord(path, format === "csv", (line) => Effect.gen(function* () {
     if (format === "csv") { if (line === "") return; if (!headers) { headers = yield* Effect.try({ try: () => parseCsvHeader(line), catch: (error) => error instanceof Error ? error : new Error(String(error)) }); return; } const attrs = yield* Effect.try({ try: () => rowToAttrs(headers as string[], parseCsvLine(line)), catch: (error) => error instanceof Error ? error : new Error(String(error)) }); if (yield* evaluateFilter(ast, attrs)) yield* output.stdout(`${yield* inspectAttrs(attrs)}\n`); return; }
     const attrs = yield* Effect.try({ try: () => parseLtsvLine(line), catch: (error) => error instanceof Error ? error : new Error(String(error)) });
     if (yield* evaluateFilter(ast, attrs)) yield* output.stdout(`${yield* inspectAttrs(attrs)}\n`);
