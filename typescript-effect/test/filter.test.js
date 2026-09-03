@@ -9,11 +9,31 @@ test("Effect parser and evaluator return Effects", async () => {
   assert.equal(await Effect.runPromise(inspectAttrs({ host: "www.example.com" })), '{host: "www.example.com"}');
 });
 
-test("escaped asterisk and UTF-8 escapes are decoded correctly", async () => {
-  const literalStar = await Effect.runPromise(parseFilter("(cn=*\\2a*)"));
-  assert.equal(await Effect.runPromise(evaluateFilter(literalStar, { cn: "prefix*suffix" })), true);
-  assert.equal(await Effect.runPromise(evaluateFilter(literalStar, { cn: "prefixXsuffix" })), false);
+test("escaped asterisk is distinct from a presence filter", async () => {
+  const literalStar = await Effect.runPromise(parseFilter("(cn=\\2a)"));
+  const presence = await Effect.runPromise(parseFilter("(cn=*)"));
 
+  assert.equal(
+    await Effect.runPromise(evaluateFilter(literalStar, { cn: "*" })),
+    true
+  );
+  assert.equal(
+    await Effect.runPromise(evaluateFilter(literalStar, { cn: "anything" })),
+    false
+  );
+
+  assert.equal(
+    await Effect.runPromise(evaluateFilter(presence, { cn: "anything" })),
+    true
+  );
+  assert.equal(
+    await Effect.runPromise(evaluateFilter(presence, {})),
+    false
+  );
+
+});
+
+test("UTF-8 escapes are decoded correctly", async () => {
   const utf8 = await Effect.runPromise(parseFilter("(cn=\\c4\\8d)"));
   assert.equal(await Effect.runPromise(evaluateFilter(utf8, { cn: "č" })), true);
 });

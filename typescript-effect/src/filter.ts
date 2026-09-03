@@ -4,7 +4,7 @@ export type AttrValue = string | null | undefined;
 export type AttrMap = Record<string, AttrValue>;
 export type Operator = "=" | "~=" | ">=" | "<=";
 export type FilterNode =
-  | { kind: "item"; attr: string; op: Operator; value: string; regex?: RegExp }
+  | { kind: "item"; attr: string; op: Operator; value: string; presence: boolean; regex?: RegExp }
   | { kind: "and"; nodes: FilterNode[] }
   | { kind: "or"; nodes: FilterNode[] }
   | { kind: "not"; node: FilterNode };
@@ -13,7 +13,7 @@ export class FilterError extends Error { readonly _tag = "FilterError"; }
 const asFilterError = (error: unknown): FilterError => error instanceof FilterError ? error : new FilterError(String(error));
 const isOperatorStart = (char: string | undefined): boolean => char === "=" || char === "~" || char === ">" || char === "<";
 
-function decodeValue(raw: string): { value: string; regex?: RegExp } {
+function decodeValue(raw: string): { value: string; presence: boolean; regex?: RegExp } {
   const bytes: number[] = []; const segments: Uint8Array[] = []; let segment: number[] = []; let hasWildcard = false;
   for (let i = 0; i < raw.length;) {
     const char = raw[i];
@@ -30,13 +30,13 @@ function decodeValue(raw: string): { value: string; regex?: RegExp } {
   let value: string;
   try { value = new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(bytes)); }
   catch { throw new FilterError("invalid UTF-8 escape sequence"); }
-  if (!hasWildcard || raw === "*") return { value };
+  if (!hasWildcard || raw === "*") return { value, presence: raw === "*" };
   segments.push(Uint8Array.from(segment));
   const parts = segments.map((part) => {
     try { return new TextDecoder("utf-8", { fatal: true }).decode(part).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
     catch { throw new FilterError("invalid UTF-8 escape sequence"); }
   });
-  return { value, regex: new RegExp(`^${parts.join(".*")}$`) };
+  return { value, presence: false, regex: new RegExp(`^${parts.join(".*")}$`) };
 }
 
 class Parser {
@@ -83,7 +83,7 @@ export const evaluateFilter = (node: FilterNode, attrs: AttrMap): Effect.Effect<
   if (node.kind === "or") return (yield* Effect.forEach(node.nodes, (child) => evaluateFilter(child, attrs))).some(Boolean);
   if (node.kind === "not") return !(yield* evaluateFilter(node.node, attrs));
   const actual = attrs[node.attr];
-  if (node.op === "=") { if (node.value === "*") return Object.prototype.hasOwnProperty.call(attrs, node.attr); return node.regex ? typeof actual === "string" && node.regex.test(actual) : actual === node.value; }
+  if (node.op === "=") { if (node.presence) return Object.prototype.hasOwnProperty.call(attrs, node.attr); return node.regex ? typeof actual === "string" && node.regex.test(actual) : actual === node.value; }
   if (node.op === "~=") return typeof actual === "string" && levenshtein(node.value, actual) < 3;
   if (node.op === ">=") return typeof actual === "string" && actual >= node.value;
   if (node.op === "<=") return typeof actual === "string" && actual <= node.value;
