@@ -1,4 +1,6 @@
 import { Effect } from "effect";
+export { FilterError } from "./errors";
+import { FilterError } from "./errors";
 
 export type AttrValue = string | null | undefined;
 export type AttrMap = Record<string, AttrValue>;
@@ -9,7 +11,6 @@ export type FilterNode =
   | { kind: "or"; nodes: FilterNode[] }
   | { kind: "not"; node: FilterNode };
 
-export class FilterError extends Error { readonly _tag = "FilterError"; }
 const asFilterError = (error: unknown): FilterError => error instanceof FilterError ? error : new FilterError(String(error));
 const isOperatorStart = (char: string | undefined): boolean => char === "=" || char === "~" || char === ">" || char === "<";
 
@@ -78,19 +79,19 @@ function levenshtein(a: string, b: string): number {
   return prev[b.length];
 }
 
-export const evaluateFilter = (node: FilterNode, attrs: AttrMap): Effect.Effect<boolean, FilterError> => Effect.gen(function* () {
-  if (node.kind === "and") return (yield* Effect.forEach(node.nodes, (child) => evaluateFilter(child, attrs))).every(Boolean);
-  if (node.kind === "or") return (yield* Effect.forEach(node.nodes, (child) => evaluateFilter(child, attrs))).some(Boolean);
-  if (node.kind === "not") return !(yield* evaluateFilter(node.node, attrs));
+export function evaluateFilter(node: FilterNode, attrs: AttrMap): boolean {
+  if (node.kind === "and") return node.nodes.every((child) => evaluateFilter(child, attrs));
+  if (node.kind === "or") return node.nodes.some((child) => evaluateFilter(child, attrs));
+  if (node.kind === "not") return !evaluateFilter(node.node, attrs);
   const actual = attrs[node.attr];
   if (node.op === "=") { if (node.presence) return Object.prototype.hasOwnProperty.call(attrs, node.attr); return node.regex ? typeof actual === "string" && node.regex.test(actual) : actual === node.value; }
   if (node.op === "~=") return typeof actual === "string" && levenshtein(node.value, actual) < 3;
   if (node.op === ">=") return typeof actual === "string" && actual >= node.value;
   if (node.op === "<=") return typeof actual === "string" && actual <= node.value;
-  return yield* Effect.fail(new FilterError(`unsupported operator: ${node.op}`));
-});
+  throw new FilterError(`unsupported operator: ${node.op}`);
+}
 
-export const inspectAttrs = (attrs: AttrMap): Effect.Effect<string, never> => Effect.sync(() => {
+export function inspectAttrs(attrs: AttrMap): string {
   const parts = Object.entries(attrs).map(([key, value]) => `${/^[A-Za-z_][A-Za-z0-9_]*$/.test(key) ? `${key}: ` : `${JSON.stringify(key)} => `}${value === null || value === undefined ? "nil" : JSON.stringify(String(value))}`);
   return `{${parts.join(", ")}}`;
-});
+}

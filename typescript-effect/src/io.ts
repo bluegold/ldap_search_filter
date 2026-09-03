@@ -1,47 +1,52 @@
-import { Effect } from "effect";
+import { Effect, Stream } from "effect";
 import { createReadStream } from "node:fs";
-import { createInterface } from "node:readline";
+import { createInterface, type Interface } from "node:readline";
 import { spawn, type ChildProcess } from "node:child_process";
+import { InputError } from "./errors";
 import type { AttrMap } from "./filter";
 
 export type FormatKind = "auto" | "csv" | "ltsv";
-const toError = (error: unknown): Error => error instanceof Error ? error : new Error(String(error));
-type InputStream = NodeJS.ReadableStream & AsyncIterable<string> & { destroy: () => void };
-type Input = { stream: InputStream; child?: ChildProcess; exit: Promise<void>; cleanup: () => void; exitError?: Error; exitCode?: number | null; exitSignal?: NodeJS.Signals | null };
+const toInputError = (error: unknown): InputError => error instanceof InputError ? error : new InputError(String(error));
+type InputStream = NodeJS.ReadableStream & { destroy: () => void };
+type Input = { stream: InputStream; lines: Interface; child?: ChildProcess; exit: Promise<void>; exitError?: InputError; exitCode?: number | null; exitSignal?: NodeJS.Signals | null; cleanup: () => void };
 
-function openInput(inputPath: string): Input {
-  const child = inputPath.endsWith(".xz") ? spawn("xz", ["-dc", inputPath], { stdio: ["ignore", "pipe", "pipe"] }) : undefined;
-  const stream = (child?.stdout ?? createReadStream(inputPath, { encoding: "utf8" })) as InputStream;
-  const input: Input = { stream, child, exit: Promise.resolve(), cleanup: () => { stream.destroy(); child?.kill(); } };
-  input.exit = child ? new Promise<void>((resolve) => { child.once("error", (error) => { input.exitError = toError(error); resolve(); }); child.once("close", (code, signal) => { input.exitCode = code; input.exitSignal = signal; resolve(); }); }) : Promise.resolve();
+function openInput(inputPath: string, signal: AbortSignal): Input {
+  const child = inputPath.endsWith(".xz") ? spawn("xz", ["-dc", inputPath], { stdio: ["ignore", "pipe", "pipe"], signal }) : undefined;
+  const stream = (child?.stdout ?? createReadStream(inputPath, { encoding: "utf8", signal })) as InputStream;
+  const lines = createInterface({ input: stream, crlfDelay: Infinity });
+  const input: Input = { stream, lines, child, exit: Promise.resolve(), cleanup: () => { lines.close(); stream.destroy(); child?.kill(); } };
+  input.exit = child ? new Promise<void>((resolve) => { child.once("error", (error) => { input.exitError = toInputError(error); resolve(); }); child.once("close", (code, signal) => { input.exitCode = code; input.exitSignal = signal; resolve(); }); }) : Promise.resolve();
   return input;
 }
 
-export function forEachInputRecord(inputPath: string, csv: boolean, onRecord: (record: string) => Effect.Effect<void, Error>): Effect.Effect<void, Error> {
-  return Effect.tryPromise({
-    try: async () => {
-      const input = openInput(inputPath); const rl = createInterface({ input: input.stream, crlfDelay: Infinity }); let record = ""; let quoted = false;
-      const emit = async (value: string) => { await Effect.runPromise(onRecord(value)); };
-      try {
-        for await (const line of rl) {
-          if (!csv) { await emit(line); continue; }
-          record += record === "" ? line : `\n${line}`;
-          for (let i = 0; i < line.length; i += 1) {
-            if (line[i] !== '"') continue;
-            if (line[i + 1] === '"') { i += 1; continue; }
-            quoted = !quoted;
-          }
-          if (!quoted) { await emit(record); record = ""; }
-        }
-        if (csv && quoted) throw new Error("unterminated CSV quoted field");
-        if (csv && record !== "") await emit(record);
-        await input.exit;
-        if (input.exitError) throw input.exitError;
-        if (input.child && input.exitCode !== 0) throw new Error(`xz failed for ${inputPath}: ${input.exitSignal ?? input.exitCode}`);
-      } finally { rl.close(); input.cleanup(); }
-    },
-    catch: toError
-  });
+export function forEachInputRecord<E>(inputPath: string, csv: boolean, onRecord: (record: string) => Effect.Effect<void, E>): Effect.Effect<void, InputError | E> {
+  return Effect.acquireUseRelease(
+    Effect.tryPromise({ try: (signal) => Promise.resolve(openInput(inputPath, signal)), catch: toInputError }),
+    (input) => Effect.gen(function* () {
+      let record = ""; let quoted = false;
+      const records = Stream.fromAsyncIterable(input.lines as AsyncIterable<string>, toInputError);
+      yield* Stream.runForEach(records, (line) => Effect.gen(function* () {
+        if (!csv) return yield* onRecord(line);
+        record += record === "" ? line : `\n${line}`;
+        for (let i = 0; i < line.length; i += 1) { if (line[i] !== '"') continue; if (line[i + 1] === '"') { i += 1; continue; } quoted = !quoted; }
+        if (!quoted) { const complete = record; record = ""; yield* onRecord(complete); }
+      }));
+      if (csv && quoted) return yield* Effect.fail(new InputError("unterminated CSV quoted field"));
+      if (csv && record !== "") yield* onRecord(record);
+      yield* Effect.tryPromise({
+        try: (signal) => new Promise<void>((resolve, reject) => {
+          if (signal.aborted) { reject(new InputError("input interrupted")); return; }
+          const abort = () => reject(new InputError("input interrupted"));
+          signal.addEventListener("abort", abort, { once: true });
+          input.exit.then(() => { signal.removeEventListener("abort", abort); resolve(); });
+        }),
+        catch: toInputError
+      });
+      if (input.exitError) return yield* Effect.fail(input.exitError);
+      if (input.child && input.exitCode !== 0) return yield* Effect.fail(new InputError(`xz failed for ${inputPath}: ${input.exitSignal ?? input.exitCode}`));
+    }),
+    (input) => Effect.sync(input.cleanup)
+  );
 }
 
 export function detectFormat(inputPath: string): Exclude<FormatKind, "auto"> { return inputPath.endsWith(".csv") || inputPath.endsWith(".csv.xz") ? "csv" : "ltsv"; }
