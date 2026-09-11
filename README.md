@@ -20,6 +20,7 @@ Ruby 実装を bundle 経由で使う場合は、`ruby/` ディレクトリで `
 
 - `ruby/` - `ldap_filter` gem とサンプル CLI
 - `typescript/` - TypeScript 実装
+- `typescript-effect/` - Effect を使った TypeScript 実装
 - `python/` - Python 実装
 - `php/` - PHP 実装
 - `cpp/` - C++ 実装
@@ -66,6 +67,7 @@ Ruby 実装を bundle 経由で使う場合は、`ruby/` ディレクトリで `
 | `ruby` | Ruby | CRuby 3.3+ | 基準実装。`--yjit` などのフラグに対応 |
 | `typescript` | TypeScript | Node.js | `tsc` でビルド |
 | `typescript-bun`| TypeScript | Bun | `typescript` と同一ソース |
+| `typescript-effect` | TypeScript | Node.js + Effect | Effect による typed error / 非同期処理 |
 | `python` | Python | Python 3 | |
 | `csharp` | C# | .NET 10 | |
 | `csharp-aot` | C# | .NET 10 (NativeAOT) | `dotnet publish` による自己完結型バイナリ |
@@ -92,6 +94,7 @@ just test
 | :--- | :--- |
 | **Ruby** | `cd ruby && bundle exec ruby -Itest test/test_ldap_filter.rb` |
 | **TypeScript** | `cd typescript && npm test` |
+| **TypeScript (Effect)** | `cd typescript-effect && npm test` |
 | **Python** | `cd python && python3 -m unittest discover -s test -p 'test_*.py'` |
 | **Python (pyc)** | `cd python && python3 -m py_compile ldap_filter.py` |
 | **PHP** | `cd php && php test/test_ldap_filter.php` |
@@ -123,6 +126,14 @@ bundle exec ruby ./ldap_filter.rb --jit --format ltsv '(host=*)' ../data/access.
 ```bash
 cd typescript
 npx tsc -p tsconfig.json
+node dist/index.js --format ltsv '(host=*)' ../data/access.log.xz
+```
+
+**TypeScript + Effect 実装の手動ビルドと実行:**
+```bash
+cd typescript-effect
+npm install
+npm run build
 node dist/index.js --format ltsv '(host=*)' ../data/access.log.xz
 ```
 

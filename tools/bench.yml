@@ -38,6 +38,27 @@ implementations:
       - "{format}"
       - "{filter}"
       - "{input}"
+  - name: typescript-effect
+    build:
+      cwd: typescript-effect
+      target: dist/index.js
+      sources:
+        - src/**/*.ts
+        - package.json
+        - package-lock.json
+        - tsconfig.json
+      command:
+        - npm
+        - run
+        - build
+    command:
+      - node
+      - typescript-effect/dist/index.js
+      - "{jit_flag}"
+      - --format
+      - "{format}"
+      - "{filter}"
+      - "{input}"
   - name: csharp
     build:
       cwd: csharp
