@@ -619,7 +619,7 @@ function processInput(string $inputPath, string $format, FilterExpr $expr): void
 function eachCsvAttrs(string $inputPath, callable $callback): void
 {
     withInputHandle($inputPath, static function ($handle) use ($callback): void {
-        $headers = fgetcsv($handle);
+        $headers = fgetcsv($handle, null, ',', '"', '\\');
         if ($headers === false) {
             return;
         }
@@ -628,7 +628,7 @@ function eachCsvAttrs(string $inputPath, callable $callback): void
             $headers[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $headers[0]);
         }
 
-        while (($row = fgetcsv($handle)) !== false) {
+        while (($row = fgetcsv($handle, null, ',', '"', '\\')) !== false) {
             if ($row === [null]) {
                 continue;
             }
